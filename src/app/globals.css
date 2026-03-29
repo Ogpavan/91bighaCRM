@@ -15,6 +15,91 @@ a {
   text-decoration: none;
 }
 
+.text-logo-link {
+  line-height: 1 !important;
+}
+
+.text-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-transform: lowercase;
+}
+
+.text-logo-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(var(--primary-rgb), 0.12);
+  color: var(--primary);
+}
+
+.text-logo-icon .material-icons-outlined {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.text-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary) 0%, #6fe3cf 100%);
+  color: var(--dark);
+  box-shadow: 0 10px 24px rgba(var(--primary-rgb), 0.2);
+  font-size: 0.9rem;
+}
+
+.text-logo-name {
+  color: var(--heading-color);
+  position: relative;
+}
+
+.text-logo-name::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary) 0%, transparent 100%);
+}
+
+.text-logo-dark-theme .text-logo-name {
+  color: var(--white);
+}
+
+@media (max-width: 991.98px) {
+  .text-logo {
+    font-size: 1.5rem;
+    gap: 8px;
+  }
+
+  .text-logo-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .text-logo-badge {
+    min-width: 38px;
+    height: 30px;
+    padding: 0 9px;
+    font-size: 0.82rem;
+  }
+}
+
 .featured-sales-section .features-slide-card {
   padding-inline: 14px;
 }
@@ -45,6 +130,10 @@ a {
   object-fit: cover;
   border-radius: 50%;
   display: block;
+}
+
+[data-theme="dark"] .text-logo-name {
+  color: var(--gray-900);
 }
 
 

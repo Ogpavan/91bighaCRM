@@ -41,6 +41,18 @@ function WhatsAppLogo() {
   return <img src="/assets/img/icons/whatsapp-logo.png" alt="WhatsApp" className="header-whatsapp-logo" />;
 }
 
+function TextLogo({ dark = false }: { dark?: boolean }) {
+  return (
+    <span className={`text-logo${dark ? " text-logo-dark-theme" : ""}`} aria-label="91bigha">
+      <span className="text-logo-icon" aria-hidden="true">
+        <i className="material-icons-outlined">apartment</i>
+      </span>
+      <span className="text-logo-badge">91</span>
+      <span className="text-logo-name">bigha</span>
+    </span>
+  );
+}
+
 export function SiteHeader() {
   const pathname = usePathname();
 
@@ -49,11 +61,11 @@ export function SiteHeader() {
       <div className="container">
         <nav className="navbar navbar-expand-lg header-nav">
           <div className="navbar-header">
-            <Link href="/" className="navbar-brand logo">
-              <img src="/assets/img/logo.svg" className="img-fluid" alt="91bigha.com" />
+            <Link href="/" className="navbar-brand logo text-logo-link">
+              <TextLogo />
             </Link>
-            <Link href="/" className="navbar-brand logo-dark">
-              <img src="/assets/img/logo-white.svg" className="img-fluid" alt="91bigha.com" />
+            <Link href="/" className="navbar-brand logo-dark text-logo-link">
+              <TextLogo dark />
             </Link>
             <a id="mobile_btn" href="javascript:void(0);">
               <i className="material-icons-outlined">menu</i>
@@ -62,11 +74,11 @@ export function SiteHeader() {
 
           <div className="main-menu-wrapper">
             <div className="menu-header">
-              <Link href="/" className="menu-logo">
-                <img src="/assets/img/logo.svg" className="img-fluid" alt="91bigha.com" />
+              <Link href="/" className="menu-logo text-logo-link">
+                <TextLogo />
               </Link>
-              <Link href="/" className="menu-logo menu-logo-dark">
-                <img src="/assets/img/logo-white.svg" className="img-fluid" alt="91bigha.com" />
+              <Link href="/" className="menu-logo menu-logo-dark text-logo-link">
+                <TextLogo dark />
               </Link>
               <a id="menu_close" className="menu-close" href="javascript:void(0);">
                 <i className="material-icons-outlined">close</i>
