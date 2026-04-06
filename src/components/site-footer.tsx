@@ -66,14 +66,14 @@ export function SiteFooter() {
 
             <div className="col-lg-2 col-md-4 col-sm-4">
               <div className="footer-widget">
-                <h5 className="footer-title">Destinations</h5>
+                <h5 className="footer-title">Bareilly Localities</h5>
                 <ul className="footer-menu">
-                  <li><a href="javascript:void(0);">Hawai</a></li>
-                  <li><a href="javascript:void(0);">Istanbul</a></li>
-                  <li><a href="javascript:void(0);">San Diego</a></li>
-                  <li><a href="javascript:void(0);">Belgium</a></li>
-                  <li><a href="javascript:void(0);">Newyork</a></li>
-                  <li><a href="javascript:void(0);">Los Angeles</a></li>
+                  <li><a href="javascript:void(0);">Civil Lines</a></li>
+                  <li><a href="javascript:void(0);">Rajendra Nagar</a></li>
+                  <li><a href="javascript:void(0);">DD Puram</a></li>
+                  <li><a href="javascript:void(0);">Pilibhit Bypass</a></li>
+                  <li><a href="javascript:void(0);">Model Town</a></li>
+                  <li><a href="javascript:void(0);">Izatnagar</a></li>
                 </ul>
               </div>
             </div>

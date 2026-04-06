@@ -1,0 +1,18 @@
+[Unit]
+Description=91bigha Next.js web application
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/91bigha/app
+EnvironmentFile=/var/www/91bigha/shared/site.env
+ExecStart=/usr/bin/node /var/www/91bigha/app/server.js
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "build:site": "next build",
+    "build:crm": "npm --prefix frontend run build",
+    "build:all": "npm run build:site && npm run build:crm"
   },
   "keywords": [],
   "author": "",
@@ -16,14 +19,17 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.7.0",
     "next": "^16.2.1",
+    "pg": "^8.20.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "25.5.0",
+    "@types/pg": "^8.20.0",
     "@types/react": "19.2.14",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",

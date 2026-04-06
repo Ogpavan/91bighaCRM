@@ -1,0 +1,101 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #0c66e4;
+  --brand-soft: rgba(12, 102, 228, 0.12);
+  --brand-soft-strong: rgba(12, 102, 228, 0.2);
+  --background: 210 17% 98%;
+  --foreground: 220 15% 22%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 15% 22%;
+  --primary: 214 90% 47%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 28% 95%;
+  --secondary-foreground: 220 15% 22%;
+  --muted: 210 25% 96%;
+  --muted-foreground: 218 10% 40%;
+  --accent: 214 100% 96%;
+  --accent-foreground: 214 90% 47%;
+  --border: 220 13% 89%;
+  --ring: 214 90% 47%;
+  --radius: 0.2rem;
+}
+
+.dark {
+  --brand-primary: #4f8df8;
+  --brand-soft: rgba(79, 141, 248, 0.16);
+  --brand-soft-strong: rgba(79, 141, 248, 0.24);
+  --background: 222 37% 9%;
+  --foreground: 210 20% 92%;
+  --card: 222 30% 12%;
+  --card-foreground: 210 20% 92%;
+  --primary: 215 95% 64%;
+  --primary-foreground: 220 30% 12%;
+  --secondary: 223 24% 17%;
+  --secondary-foreground: 214 20% 89%;
+  --muted: 222 24% 15%;
+  --muted-foreground: 215 14% 70%;
+  --accent: 222 24% 17%;
+  --accent-foreground: 210 20% 92%;
+  --border: 222 18% 24%;
+  --ring: 215 95% 64%;
+}
+
+* {
+  @apply border-border;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  @apply m-0 bg-background text-foreground antialiased;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+.dark body {
+  background-image: radial-gradient(circle at 0% 0%, rgba(79, 141, 248, 0.14), transparent 30%),
+    radial-gradient(circle at 100% 0%, rgba(16, 185, 129, 0.1), transparent 35%);
+}
+
+.dark .bg-white {
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: hsl(var(--border)) !important;
+}
+
+.dark .text-gray-400 {
+  color: #8f9bb0 !important;
+}
+
+.dark .text-gray-500,
+.dark .text-gray-600 {
+  color: #9aa7bc !important;
+}
+
+.dark .text-gray-700,
+.dark .text-gray-800 {
+  color: #e1e7f2 !important;
+}
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: #1b2232 !important;
+}

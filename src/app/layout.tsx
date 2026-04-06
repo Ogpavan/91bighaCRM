@@ -6,9 +6,9 @@ import "./globals.css";
 const assetBase = "/assets";
 
 export const metadata: Metadata = {
-  title: "Home | 91bigha.com",
+  title: "Bareilly Property Portal | 91bigha.com",
   description:
-    "91bigha.com is a powerful real estate platform for property listings, rentals, and agency dashboards."
+    "91bigha.com helps buyers and tenants discover property listings, rentals, and local opportunities across Bareilly."
 };
 
 export default function RootLayout({

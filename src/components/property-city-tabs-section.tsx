@@ -4,18 +4,18 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const cities = [
-  "Bangalore",
-  "Mumbai",
-  "Hyderabad",
-  "Thane",
-  "Pune",
-  "New Delhi",
-  "Chennai",
-  "Ahmedabad",
-  "Kolkata",
-  "Gurgaon",
-  "Noida",
-  "Navi Mumbai",
+  "Bareilly",
+  "Civil Lines",
+  "DD Puram",
+  "Rajendra Nagar",
+  "Pilibhit Bypass",
+  "Izatnagar",
+  "Model Town",
+  "Prem Nagar",
+  "Rampur Garden",
+  "Delapeer",
+  "CB Ganj",
+  "Airport Road",
   "Others"
 ] as const;
 
@@ -26,69 +26,49 @@ type OptionGroup = {
   items: string[];
 };
 
-const bangaloreGroups: OptionGroup[] = [
+const bareillyGroups: OptionGroup[] = [
   {
     title: "Flats",
     items: [
-      "Flats in Bangalore",
-      "Flats in Whitefield",
-      "Flats in Sarjapur Road",
-      "Flats in Electronic City",
-      "Flats in Koramangala",
-      "Flats in HSR Layout",
-      "Flats in Marathahalli",
-      "Flats in Hebbal",
-      "Flats in Kanakapura Road",
-      "Flats in Bellandur",
-      "Flats in Varthur"
+      "Flats in Bareilly",
+      "Flats in Civil Lines",
+      "Flats in DD Puram",
+      "Flats in Rajendra Nagar",
+      "Flats in Izatnagar",
+      "Flats near Pilibhit Bypass"
     ]
   },
   {
     title: "House for Sale",
     items: [
-      "House for Sale in Bangalore",
-      "House for Sale in Whitefield",
-      "House for Sale in HSR Layout",
-      "House for Sale in JP Nagar",
-      "House for Sale in Koramangala",
-      "House for Sale in Sarjapur Road",
-      "House for Sale in Hebbal",
-      "House for Sale in Yelahanka",
-      "House for Sale in Electronic City",
-      "House for Sale in Marathahalli",
-      "House for Sale in Bellandur"
+      "House for Sale in Bareilly",
+      "Independent House in Civil Lines",
+      "House for Sale in DD Puram",
+      "Villa in Rajendra Nagar",
+      "Family Home in Model Town",
+      "Ready House in Prem Nagar"
     ]
   },
   {
     title: "Property",
     items: [
-      "Property in Bangalore",
-      "Property in Whitefield",
-      "Property in Sarjapur Road",
-      "Property in Electronic City",
-      "Property in Yelahanka",
-      "Property in HSR Layout",
-      "Property in Koramangala",
-      "Property in Marathahalli",
-      "Property in Hebbal",
-      "Property in JP Nagar",
-      "Property in Bellandur"
+      "Property in Bareilly",
+      "Property in Civil Lines",
+      "Property in DD Puram",
+      "Property in Izatnagar",
+      "Property on Airport Road",
+      "Verified Property in Rampur Garden"
     ]
   },
   {
     title: "Plots",
     items: [
-      "Plots in Bangalore",
-      "Plots in Whitefield",
-      "Plots in Sarjapur Road",
-      "Plots in Yelahanka",
-      "Plots in Electronic City",
-      "Plots in HSR Layout",
-      "Plots in Kanakapura Road",
-      "Plots in Marathahalli",
-      "Plots in JP Nagar",
-      "Plots in Sarjapur",
-      "Plots in Bellandur"
+      "Plots in Bareilly",
+      "Residential Plots in Pilibhit Bypass",
+      "Corner Plots in Izatnagar",
+      "Approved Plots in CB Ganj",
+      "Plots in Delapeer",
+      "Investment Plots on Airport Road"
     ]
   }
 ];
@@ -143,7 +123,7 @@ function buildGenericGroups(city: City): OptionGroup[] {
 }
 
 const cityGroups: Record<City, OptionGroup[]> = cities.reduce((acc, city) => {
-  acc[city] = city === "Bangalore" ? bangaloreGroups : buildGenericGroups(city);
+  acc[city] = city === "Bareilly" ? bareillyGroups : buildGenericGroups(city);
   return acc;
 }, {} as Record<City, OptionGroup[]>);
 
@@ -152,7 +132,7 @@ function toSlug(city: City) {
 }
 
 export function PropertyCityTabsSection() {
-  const [activeCity, setActiveCity] = useState<City>("Bangalore");
+  const [activeCity, setActiveCity] = useState<City>("Bareilly");
   const groups = cityGroups[activeCity];
   const activeSlug = toSlug(activeCity);
 
@@ -160,12 +140,12 @@ export function PropertyCityTabsSection() {
     <section className="section-padding bg-white">
       <div className="container">
         <div className="section-heading mb-4">
-          <h2 className="mb-2 text-center">Property Options in Top Cities for Buy</h2>
+          <h2 className="mb-2 text-center">Property Options Across Bareilly</h2>
           <div className="sec-line">
             <span className="sec-line1"></span>
             <span className="sec-line2"></span>
           </div>
-          <p className="mb-0 text-center">Explore high-intent property searches across major Indian markets.</p>
+          <p className="mb-0 text-center">Explore high-intent buy-side searches across Bareilly and nearby micro-markets.</p>
         </div>
 
         <div className="overflow-x-auto border-bottom border-slate-200 pb-1">

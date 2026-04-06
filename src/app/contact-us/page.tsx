@@ -26,8 +26,8 @@ const contactCards = [
   {
     icon: "location_city",
     title: "Markets We Cover",
-    body: "Delhi NCR, Gurgaon, Noida, Bangalore, Mumbai, Pune",
-    helper: "We support high-intent residential search across major city markets.",
+    body: "Bareilly, Civil Lines, DD Puram, Rajendra Nagar, Izatnagar, Pilibhit Bypass",
+    helper: "We support focused residential and rental search across Bareilly's active localities.",
     actionLabel: "Explore Buy Listings",
     actionHref: "/buy-property-grid-sidebar"
   }
@@ -64,13 +64,13 @@ export default function ContactUsPage() {
           <div className="row align-items-center row-gap-4">
             <div className="col-lg-6">
               <div className="section-heading mb-0 text-start">
-                <h2 className="mb-3">Talk to the 91bigha.com property desk</h2>
+                  <h2 className="mb-3">Talk to the Bareilly property desk</h2>
                 <p className="mb-3">
                   Reach out for buying, renting, project discovery, or owner listing support. The fastest path is
                   WhatsApp or a direct call, and the enquiry form below also routes to WhatsApp with your details.
                 </p>
                 <p className="mb-4">
-                  Share your budget, location, timeline, and property type. We will help you move faster with a more
+                  Share your budget in INR, preferred Bareilly locality, timeline, and property type. We will help you move faster with a more
                   focused shortlist.
                 </p>
                 <div className="d-flex flex-wrap gap-3">
@@ -82,7 +82,7 @@ export default function ContactUsPage() {
               </div>
             </div>
             <div className="col-lg-6">
-              <img src="/assets/img/home/home-02.jpg" alt="Contact 91bigha.com" className="img-fluid rounded-0 shadow-sm" />
+              <img src="/assets/img/home/home-02.jpg" alt="Bareilly property support" className="img-fluid rounded-0 shadow-sm" />
             </div>
           </div>
         </div>

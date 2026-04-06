@@ -15,30 +15,30 @@ const rentGridReplacements: Array<[string | RegExp, string]> = [
   [/src=(['"])assets\/img\/buy\/buy-grid-img-06\.jpg\1/g, 'src=$1assets/img/rent/rent-grid-img-06.jpg$1'],
   [/src=(['"])assets\/img\/buy\/buy-grid-img-07\.jpg\1/g, 'src=$1assets/img/rent/rent-grid-img-07.jpg$1'],
   [/src=(['"])assets\/img\/buy\/buy-grid-img-08\.jpg\1/g, 'src=$1assets/img/rent/rent-grid-img-08.jpg$1'],
-  [/<h6 class="text-white mb-0">\$21000<\/h6>/g, '<h6 class="text-white mb-0">$2,100<span class="fs-14 fw-normal">/month</span></h6>'],
-  [/<h6 class="text-white mb-0">\$1940<\/h6>/g, '<h6 class="text-white mb-0">$1,940<span class="fs-14 fw-normal">/month</span></h6>'],
-  [/<h6 class="text-white mb-0">\$1370<\/h6>/g, '<h6 class="text-white mb-0">$1,370<span class="fs-14 fw-normal">/month</span></h6>'],
-  [/<h6 class="text-white mb-0">\$1650<\/h6>/g, '<h6 class="text-white mb-0">$1,650<span class="fs-14 fw-normal">/month</span></h6>'],
-  [/<h6 class="text-white mb-0">\$1645<\/h6>/g, '<h6 class="text-white mb-0">$1,645<span class="fs-14 fw-normal">/month</span></h6>'],
-  [/<h6 class="text-white mb-0">\$1950<\/h6>/g, '<h6 class="text-white mb-0">$1,950<span class="fs-14 fw-normal">/month</span></h6>'],
-  [/<h6 class="text-white mb-0">\$2470<\/h6>/g, '<h6 class="text-white mb-0">$2,470<span class="fs-14 fw-normal">/month</span></h6>'],
-  [/<h6 class="text-white mb-0">\$1900<\/h6>/g, '<h6 class="text-white mb-0">$1,900<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$21000<\/h6>/g, '<h6 class="text-white mb-0">₹28,000<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$1940<\/h6>/g, '<h6 class="text-white mb-0">₹19,500<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$1370<\/h6>/g, '<h6 class="text-white mb-0">₹14,500<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$1650<\/h6>/g, '<h6 class="text-white mb-0">₹18,000<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$1645<\/h6>/g, '<h6 class="text-white mb-0">₹17,500<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$1950<\/h6>/g, '<h6 class="text-white mb-0">₹22,000<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$2470<\/h6>/g, '<h6 class="text-white mb-0">₹26,000<span class="fs-14 fw-normal">/month</span></h6>'],
+  [/<h6 class="text-white mb-0">\$1900<\/h6>/g, '<h6 class="text-white mb-0">₹21,000<span class="fs-14 fw-normal">/month</span></h6>'],
   [/Serenity Condo Suite/g, "Lakeview Rental Suite"],
-  [/17, Grove Towers, New York, USA/g, "17, Lakeview Towers, Bangalore"],
+  [/17, Grove Towers, New York, USA/g, "17, Civil Lines Residency, Bareilly"],
   [/Loyal Apartment/g, "Willow Creek Apartment"],
-  [/25, Willow Crest Apartment, USA/g, "25, Willow Creek Road, Pune"],
+  [/25, Willow Crest Apartment, USA/g, "25, DD Puram Extension, Bareilly"],
   [/Grand Villa House/g, "Maple Grove Villa"],
-  [/10, Oak Ridge Villa, USA/g, "10, Maple Grove, Gurgaon"],
+  [/10, Oak Ridge Villa, USA/g, "10, Model Town Enclave, Bareilly"],
   [/Palm Cove Bungalows/g, "Palm Cove Bungalow"],
-  [/44, Palm Cove, Los Angeles, USA/g, "44, Palm Cove, Hyderabad"],
+  [/44, Palm Cove, Los Angeles, USA/g, "44, Rajendra Nagar, Bareilly"],
   [/Blue Horizon Villa/g, "Blue Horizon Homes"],
-  [/76, Golden Oaks, Dallas, USA/g, "76, Blue Horizon Lane, Mumbai"],
+  [/76, Golden Oaks, Dallas, USA/g, "76, Green Park, Bareilly"],
   [/Wanderlust Lodge/g, "Greenfield Service Apartment"],
-  [/91, Birch Residences, Boston, USA/g, "91, Greenfield Residency, Noida"],
+  [/91, Birch Residences, Boston, USA/g, "91, Izatnagar Residency, Bareilly"],
   [/Elite Suite Room/g, "Elite Studio Room"],
-  [/42, Maple Grove Residences, USA/g, "42, Studio Heights, Chennai"],
+  [/42, Maple Grove Residences, USA/g, "42, Pilibhit Bypass, Bareilly"],
   [/Celestial Residency/g, "Celestial Rental Homes"],
-  [/28, Hilltop Gardens, San Francisco, USA/g, "28, Celestial Gardens, Ahmedabad"],
+  [/28, Hilltop Gardens, San Francisco, USA/g, "28, Rampur Garden, Bareilly"],
   [/Listed on :/g, "Available from :"],
   [/Category :/g, "Rental Type :"],
   [/>Villa<\/span>/g, ">Villa Rental</span>"],
@@ -46,6 +46,26 @@ const rentGridReplacements: Array<[string | RegExp, string]> = [
   [/>Lodge <\/span>/g, ">Serviced Apartment </span>"],
   [/>Suite <\/span>/g, ">Studio </span>"],
   [/>Residency <\/span>/g, ">Family Rental </span>"]
+];
+
+const globalTemplateReplacements: Array<[string | RegExp, string]> = [
+  [/New York|Newyork/g, "Bareilly"],
+  [/Los Angeles/g, "Civil Lines"],
+  [/San Francisco/g, "DD Puram"],
+  [/Dallas/g, "Rajendra Nagar"],
+  [/Boston/g, "Izatnagar"],
+  [/Miami/g, "Pilibhit Bypass"],
+  [/Brighton, UK/g, "Model Town, Bareilly"],
+  [/Manchester, UK/g, "Izatnagar, Bareilly"],
+  [/Kyoto, Japan/g, "Prem Nagar, Bareilly"],
+  [/Sydney, Australia/g, "Airport Road, Bareilly"],
+  [/Dubai, UAE/g, "Delapeer, Bareilly"],
+  [/Rome, Italy/g, "Green Park, Bareilly"],
+  [/USA|United States|United Kingdom|Japan|Australia|UAE|Italy/g, "India"],
+  [/Hawai/g, "Civil Lines"],
+  [/Istanbul/g, "Rajendra Nagar"],
+  [/San Diego/g, "DD Puram"],
+  [/Belgium/g, "Pilibhit Bypass"]
 ];
 
 function absolutizeTemplatePath(target: string) {
@@ -119,6 +139,15 @@ function normalizeTemplateMarkup(html: string, pathname: string) {
     /(href|action|src)=(['"])((?!https?:|mailto:|tel:|#|javascript:|\/)[^"']+)\2/gi,
     (_, attr: string, quote: string, target: string) => `${attr}=${quote}${absolutizeTemplatePath(target)}${quote}`
   );
+
+  for (const [pattern, replacement] of globalTemplateReplacements) {
+    body = body.replace(pattern, replacement);
+  }
+
+  body = body.replace(/\$(\d[\d,]*)/g, "₹$1");
+  body = body.replace(/\s*\/\s*Night/gi, " / Month");
+  body = body.replace(/Total Amount \(\$\)/g, "Total Amount (INR)");
+  body = body.replace(/Down Payment \(\$\)/g, "Down Payment (INR)");
 
   return body;
 }

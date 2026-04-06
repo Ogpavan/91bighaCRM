@@ -26,6 +26,11 @@ const navItems: NavItem[] = [
     href: "/contact-us",
     match: (pathname) => pathname.startsWith("/contact")
   },
+  {
+    label: "Upload",
+    href: "/admin/properties",
+    match: (pathname) => pathname.startsWith("/admin/properties")
+  },
   { label: "About Us", href: "/about-us", match: (pathname) => pathname === "/about-us" }
 ];
 
