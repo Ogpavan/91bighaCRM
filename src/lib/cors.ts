@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:3001",
   "http://localhost:5173",
-  "https://crm.91bigha.com",
-  "https://91bigha.com"
+  "https://91bigha.com",
+  "https://www.91bigha.com",
+  "https://crm.91bigha.com"
 ];
 
 function getConfiguredOrigins() {
