@@ -8,9 +8,9 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationItem
-} from "@/lib/notifications-service";
-import { subscribeToNotificationsStream } from "@/lib/notifications-stream";
-import { searchApp, type SearchItem } from "@/lib/search-service";
+} from "@/api/notifications-service";
+import { subscribeToNotificationsStream } from "@/api/notifications-stream";
+import { searchApp, type SearchItem } from "@/api/search-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 

@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/api/api";
 import type {
   Lead,
   LeadActivity,
@@ -6,7 +6,7 @@ import type {
   LeadsMetadata,
   LeadsPagination,
   LeadVisit
-} from "@/lib/leads-types";
+} from "@/api/leads-types";
 
 export type LeadsFilters = {
   page?: number;

@@ -1,5 +1,5 @@
 import type { AuthUser } from "@/lib/auth";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/api/api";
 
 type LoginResponse = {
   success: boolean;

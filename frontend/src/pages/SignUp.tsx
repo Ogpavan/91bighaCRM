@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type AuthUser } from "@/lib/auth";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/api/api";
 
 type RegisterApiResponse = {
   success: boolean;

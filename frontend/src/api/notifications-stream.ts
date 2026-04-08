@@ -1,6 +1,6 @@
 import { getStoredToken } from "@/lib/auth";
-import { apiBaseUrl } from "@/lib/api";
-import type { NotificationItem } from "@/lib/notifications-service";
+import { apiBaseUrl } from "@/api/api";
+import type { NotificationItem } from "@/api/notifications-service";
 
 type NotificationStreamEvent =
   | { type: "snapshot"; items: NotificationItem[]; unreadCount: number }

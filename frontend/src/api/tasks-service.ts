@@ -1,5 +1,5 @@
-import { apiRequest } from "@/lib/api";
-import type { Task, TaskDetail, TaskPagination, TaskSummary } from "@/lib/tasks-types";
+import { apiRequest } from "@/api/api";
+import type { Task, TaskDetail, TaskPagination, TaskSummary } from "@/api/tasks-types";
 
 export type TaskFilters = {
   page?: number;

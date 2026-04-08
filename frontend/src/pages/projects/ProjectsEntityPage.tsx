@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
-import { createProjectEntity, getProjectsEntity, type ProjectEntity } from "@/lib/projects-entity-service";
+import { createProjectEntity, getProjectsEntity, type ProjectEntity } from "@/api/projects-entity-service";
 
 type FormState = {
   name: string;

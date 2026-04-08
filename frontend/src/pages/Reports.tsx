@@ -10,8 +10,8 @@ import PieChartCard from "@/components/reports/PieChartCard";
 import RevenueLineChart from "@/components/reports/RevenueLineChart";
 import AgentBarChart from "@/components/reports/AgentBarChart";
 import { useAuth } from "@/components/AuthContext";
-import { getUsers } from "@/lib/users-service";
-import { getLeadsMeta } from "@/lib/leads-service";
+import { getUsers } from "@/api/users-service";
+import { getLeadsMeta } from "@/api/leads-service";
 import {
   getAgentPerformanceReport,
   getLeadSummaryReport,
@@ -19,7 +19,7 @@ import {
   getSalesSummaryReport,
   getSourcePerformanceReport,
   getTaskSummaryReport
-} from "@/lib/reports-service";
+} from "@/api/reports-service";
 import type {
   AgentPerformanceItem,
   LeadSummaryReport,
@@ -27,7 +27,7 @@ import type {
   SalesSummaryReport,
   SourcePerformanceItem,
   TaskSummaryReport
-} from "@/lib/reports-types";
+} from "@/api/reports-types";
 
 const reportCards = [
   { key: "overview", title: "Overview", description: "Cross-report business snapshot", icon: BarChart3 },

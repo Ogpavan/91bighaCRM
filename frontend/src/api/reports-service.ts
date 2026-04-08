@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/api/api";
 import type {
   AgentPerformanceItem,
   LeadSummaryReport,
@@ -7,7 +7,7 @@ import type {
   SalesSummaryReport,
   SourcePerformanceItem,
   TaskSummaryReport
-} from "@/lib/reports-types";
+} from "@/api/reports-types";
 
 type Wrapped<T> = {
   success: boolean;

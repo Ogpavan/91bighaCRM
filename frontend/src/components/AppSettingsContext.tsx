@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { cacheAppSettings, getAppSettings, getCachedAppSettings, type AppSettings } from "@/lib/settings-service";
+import { cacheAppSettings, getAppSettings, getCachedAppSettings, type AppSettings } from "@/api/settings-service";
 
 const defaultSettings: AppSettings = {
   app_name: "Sarwe Crm",

@@ -18,10 +18,10 @@ import TaskDetailContent from "@/components/tasks/TaskDetailContent";
 import TaskPriorityBadge from "@/components/tasks/TaskPriorityBadge";
 import TaskStatusBadge, { getTaskStatusRowClassName } from "@/components/tasks/TaskStatusBadge";
 import TaskTypeBadge from "@/components/tasks/TaskTypeBadge";
-import { getUsers } from "@/lib/users-service";
+import { getUsers } from "@/api/users-service";
 import { formatTaskDateTime } from "@/lib/tasks-formatters";
-import { completeTask, getTaskById, getTaskMeta, getTasks, updateTask } from "@/lib/tasks-service";
-import type { Task, TaskDetail } from "@/lib/tasks-types";
+import { completeTask, getTaskById, getTaskMeta, getTasks, updateTask } from "@/api/tasks-service";
+import type { Task, TaskDetail } from "@/api/tasks-types";
 import { cn } from "@/lib/utils";
 
 const today = new Date().toISOString().slice(0, 10);

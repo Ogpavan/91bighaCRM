@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { createLead, getLeadById, getLeadsMeta, updateLead } from "@/lib/leads-service";
-import type { LeadsMetadata } from "@/lib/leads-types";
+import { createLead, getLeadById, getLeadsMeta, updateLead } from "@/api/leads-service";
+import type { LeadsMetadata } from "@/api/leads-types";
 
 const TEN_DIGIT_PHONE = /^\d{10}$/;
 

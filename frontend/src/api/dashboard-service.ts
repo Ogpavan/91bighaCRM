@@ -1,5 +1,5 @@
-import { apiRequest } from "@/lib/api";
-import type { DashboardSummary } from "@/lib/dashboard-types";
+import { apiRequest } from "@/api/api";
+import type { DashboardSummary } from "@/api/dashboard-types";
 
 type DashboardSummaryResponse = {
   success: boolean;

@@ -6,8 +6,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { getRoles, type RoleItem } from "@/lib/roles-service";
-import { disableUser, getUsers, updateUser, type UserItem } from "@/lib/users-service";
+import { getRoles, type RoleItem } from "@/api/roles-service";
+import { disableUser, getUsers, updateUser, type UserItem } from "@/api/users-service";
 
 const roleBadgeClasses = [
   "border-blue-200 bg-blue-50 text-blue-700",

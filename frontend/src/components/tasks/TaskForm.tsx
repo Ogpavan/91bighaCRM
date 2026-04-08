@@ -8,10 +8,10 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import DateTimePicker from "@/components/ui/date-time-picker";
 import { useAuth } from "@/components/AuthContext";
-import { getTaskMeta, createTask } from "@/lib/tasks-service";
-import { getUsers } from "@/lib/users-service";
-import { getLeads, getLeadsMeta } from "@/lib/leads-service";
-import type { TaskDetail } from "@/lib/tasks-types";
+import { getTaskMeta, createTask } from "@/api/tasks-service";
+import { getUsers } from "@/api/users-service";
+import { getLeads, getLeadsMeta } from "@/api/leads-service";
+import type { TaskDetail } from "@/api/tasks-types";
 
 const schema = z.object({
   title: z.string().min(2, "Title is required"),

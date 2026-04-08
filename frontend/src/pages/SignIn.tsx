@@ -5,7 +5,7 @@ import AuthShell from "@/components/AuthShell";
 import { useAuth } from "@/components/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { login } from "@/lib/auth-service";
+import { login } from "@/api/auth-service";
 
 export default function SignIn() {
   const navigate = useNavigate();

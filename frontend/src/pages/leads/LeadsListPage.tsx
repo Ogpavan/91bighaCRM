@@ -29,8 +29,8 @@ import {
   type LeadImportField,
   type LeadImportPreview,
   type LeadsFilters
-} from "@/lib/leads-service";
-import type { Lead, LeadsMetadata } from "@/lib/leads-types";
+} from "@/api/leads-service";
+import type { Lead, LeadsMetadata } from "@/api/leads-types";
 
 const TABLE_COLUMNS = 17;
 const IMPORT_FIELDS: Array<{ key: LeadImportField; label: string; required?: boolean }> = [

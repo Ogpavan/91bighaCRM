@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useAppSettings } from "@/components/AppSettingsContext";
-import { resolveApiAssetUrl } from "@/lib/api";
+import { resolveApiAssetUrl } from "@/api/api";
 
 type AuthShellProps = {
   title: string;

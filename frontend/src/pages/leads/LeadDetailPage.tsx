@@ -16,8 +16,8 @@ import {
   getLeadsMeta,
   getLeadVisits,
   updateLead
-} from "@/lib/leads-service";
-import type { Lead, LeadActivity, LeadFollowup, LeadsMetadata, LeadVisit } from "@/lib/leads-types";
+} from "@/api/leads-service";
+import type { Lead, LeadActivity, LeadFollowup, LeadsMetadata, LeadVisit } from "@/api/leads-types";
 import { useAuth } from "@/components/AuthContext";
 
 const tabs = ["overview", "followups", "visits", "timeline"] as const;

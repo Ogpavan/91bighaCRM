@@ -7,7 +7,7 @@ import { formatTaskDateTime } from "@/lib/tasks-formatters";
 import TaskPriorityBadge from "@/components/tasks/TaskPriorityBadge";
 import TaskStatusBadge from "@/components/tasks/TaskStatusBadge";
 import TaskTypeBadge from "@/components/tasks/TaskTypeBadge";
-import type { TaskDetail } from "@/lib/tasks-types";
+import type { TaskDetail } from "@/api/tasks-types";
 
 type TaskDetailContentProps = {
   task: TaskDetail;

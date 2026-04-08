@@ -20,7 +20,7 @@ import {
   type ImportPropertiesResponse,
   type ProjectListing,
   type ProjectPropertyType
-} from "@/lib/projects-service";
+} from "@/api/projects-service";
 
 type FormState = {
   title: string;

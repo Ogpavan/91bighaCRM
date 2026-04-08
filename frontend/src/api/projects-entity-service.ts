@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/api/api";
 
 export type ProjectEntity = {
   id: string;

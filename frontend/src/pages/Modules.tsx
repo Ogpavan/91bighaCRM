@@ -4,14 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getNotifications, type NotificationItem } from "@/lib/notifications-service";
+import { getNotifications, type NotificationItem } from "@/api/notifications-service";
 import {
   createPropertyType,
   deletePropertyType,
   getPropertyTypes,
   updatePropertyType,
   type PropertyTypeItem
-} from "@/lib/property-types-service";
+} from "@/api/property-types-service";
 import {
   createRole,
   deleteRole,
@@ -22,7 +22,7 @@ import {
   updateRolePermissions,
   type PermissionItem,
   type RoleItem
-} from "@/lib/roles-service";
+} from "@/api/roles-service";
 
 type ModulesTab = "roles" | "property-types" | "notifications";
 

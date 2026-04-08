@@ -1,4 +1,4 @@
-import type { Lead, LeadStatus } from "@/lib/leads-types";
+import type { Lead, LeadStatus } from "@/api/leads-types";
 import LeadStatusBadge from "@/components/leads/LeadStatusBadge";
 
 type LeadPipelineViewProps = {

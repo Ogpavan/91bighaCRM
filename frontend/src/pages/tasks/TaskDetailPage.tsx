@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { completeTask, getTaskById, getTaskMeta, updateTask } from "@/lib/tasks-service";
+import { completeTask, getTaskById, getTaskMeta, updateTask } from "@/api/tasks-service";
 import TaskDetailContent from "@/components/tasks/TaskDetailContent";
-import type { TaskDetail } from "@/lib/tasks-types";
+import type { TaskDetail } from "@/api/tasks-types";
 
 export default function TaskDetailPage() {
   const { id } = useParams();

@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthContext";
 import { useAppSettings } from "@/components/AppSettingsContext";
-import type { AppSettings } from "@/lib/settings-service";
+import type { AppSettings } from "@/api/settings-service";
 
 type ProtectedRouteProps = {
   children: JSX.Element;

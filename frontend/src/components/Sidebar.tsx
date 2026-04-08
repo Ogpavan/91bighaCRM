@@ -16,7 +16,7 @@ import { X } from "lucide-react";
 import { useAuth } from "@/components/AuthContext";
 import { useAppSettings } from "@/components/AppSettingsContext";
 import { Button } from "@/components/ui/button";
-import { resolveApiAssetUrl } from "@/lib/api";
+import { resolveApiAssetUrl } from "@/api/api";
 import { cn } from "@/lib/utils";
 
 type SidebarProps = {

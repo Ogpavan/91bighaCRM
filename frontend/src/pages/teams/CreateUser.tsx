@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { createUser } from "@/lib/users-service";
-import { getRoles, type RoleItem } from "@/lib/roles-service";
-import { getTeams, type TeamItem } from "@/lib/teams-service";
+import { createUser } from "@/api/users-service";
+import { getRoles, type RoleItem } from "@/api/roles-service";
+import { getTeams, type TeamItem } from "@/api/teams-service";
 
 const schema = z.object({
   fullName: z.string().min(2, "Full name is required"),

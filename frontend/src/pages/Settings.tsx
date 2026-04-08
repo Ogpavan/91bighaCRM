@@ -4,8 +4,8 @@ import { useTheme } from "@/components/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { resolveApiAssetUrl } from "@/lib/api";
-import { updateAppSettings, uploadBrandLogo, type AppSettings } from "@/lib/settings-service";
+import { resolveApiAssetUrl } from "@/api/api";
+import { updateAppSettings, uploadBrandLogo, type AppSettings } from "@/api/settings-service";
 
 type SettingsTab = "branding" | "modules" | "access";
 

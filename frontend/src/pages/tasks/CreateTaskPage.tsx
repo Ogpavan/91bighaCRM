@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import TaskForm from "@/components/tasks/TaskForm";
-import type { TaskDetail } from "@/lib/tasks-types";
+import type { TaskDetail } from "@/api/tasks-types";
 
 export default function CreateTaskPage() {
   const navigate = useNavigate();

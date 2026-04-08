@@ -14,8 +14,8 @@ import {
 import { useAuth } from "@/components/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getDashboardSummary } from "@/lib/dashboard-service";
-import type { DashboardLabeledCount, DashboardLeadSummary, DashboardSummary, DashboardTaskSummary, DashboardWorkspaceSummary } from "@/lib/dashboard-types";
+import { getDashboardSummary } from "@/api/dashboard-service";
+import type { DashboardLabeledCount, DashboardLeadSummary, DashboardSummary, DashboardTaskSummary, DashboardWorkspaceSummary } from "@/api/dashboard-types";
 import { formatTaskDateTime } from "@/lib/tasks-formatters";
 
 const EMPTY_SUMMARY: DashboardSummary = {

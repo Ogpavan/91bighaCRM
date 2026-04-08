@@ -11,7 +11,7 @@ import {
   updateTeam,
   updateTeamPermissions,
   type TeamItem
-} from "@/lib/teams-service";
+} from "@/api/teams-service";
 
 const pagePermissionOptions = [
   { key: "view_dashboard", label: "Dashboard" },
