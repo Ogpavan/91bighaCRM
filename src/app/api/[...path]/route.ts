@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { createCorsPreflightResponse, setCorsHeaders } from "@/lib/cors";
 import {
   AuthError,
@@ -59,11 +60,8 @@ import path from "path";
 import * as XLSX from "xlsx";
 
 type RouteContext = {
-  params: {
-    path?: string[];
-  };
+  params: Promise<{ path: string[] }>;
 };
-
 function notFound(request: Request) {
   return jsonResponse({ success: false, message: "Not found." }, 404, request);
 }
@@ -1434,22 +1432,22 @@ export async function OPTIONS(request: Request) {
   return createCorsPreflightResponse(request);
 }
 
-export async function GET(request: Request, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   return handleRequest(request, context, "GET");
 }
 
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(request: NextRequest, context: RouteContext) {
   return handleRequest(request, context, "POST");
 }
 
-export async function PUT(request: Request, context: RouteContext) {
+export async function PUT(request: NextRequest, context: RouteContext) {
   return handleRequest(request, context, "PUT");
 }
 
-export async function PATCH(request: Request, context: RouteContext) {
+export async function PATCH(request: NextRequest, context: RouteContext) {
   return handleRequest(request, context, "PATCH");
 }
 
-export async function DELETE(request: Request, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   return handleRequest(request, context, "DELETE");
 }
