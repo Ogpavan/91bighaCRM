@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { cacheAppSettings, getAppSettings, getCachedAppSettings, type AppSettings } from "@/api/settings-service";
+import { useAuth } from "@/components/AuthContext";
 
 const defaultSettings: AppSettings = {
   app_name: "Sarwe Crm",
@@ -25,6 +26,7 @@ type AppSettingsContextType = {
 const AppSettingsContext = createContext<AppSettingsContextType | null>(null);
 
 export function AppSettingsProvider({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
   const [settings, setSettingsState] = useState<AppSettings>(() => getCachedAppSettings() || defaultSettings);
   const [loading, setLoading] = useState(true);
 
@@ -47,8 +49,15 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!token) {
+      const cached = getCachedAppSettings();
+      setSettingsState(cached || defaultSettings);
+      setLoading(false);
+      return;
+    }
+
     void refresh();
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     const root = document.documentElement;
