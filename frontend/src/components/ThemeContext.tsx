@@ -28,8 +28,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
     const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    localStorage.setItem(STORAGE_KEY, theme);
+    root.classList.remove("dark");
+    localStorage.setItem(STORAGE_KEY, "light");
   }, [theme]);
 
   const value = useMemo<ThemeContextType>(
