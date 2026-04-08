@@ -54,6 +54,7 @@ import { createProperty, getPropertyTypeOptions, listApiProperties } from "@/lib
 import { getAppSettings, updateAppSettings } from "@/lib/app-settings";
 import { withDbClient } from "@/lib/db";
 import { jsonResponse } from "@/lib/api-response";
+import { getUploadsSubpath } from "@/lib/uploads";
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
@@ -544,7 +545,9 @@ async function handleSettings(request: Request, method: string, segments: string
 
     const ext = (file.name.split(".").pop() || "png").toLowerCase();
     const filename = `logo-${randomUUID()}.${ext}`;
-    const targetPath = path.join(process.cwd(), "public", "uploads", "branding", filename);
+    const brandingDir = getUploadsSubpath("branding");
+    const targetPath = path.join(brandingDir, filename);
+    await fs.mkdir(brandingDir, { recursive: true });
     await fs.writeFile(targetPath, Buffer.from(await file.arrayBuffer()));
 
     const settings = await updateAppSettings({ brand_logo_url: `/uploads/branding/${filename}` });

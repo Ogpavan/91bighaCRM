@@ -11,8 +11,11 @@ import type {
 
 type Wrapped<T> = {
   success: boolean;
-  data: T;
+  data?: T;
+  report?: T;
 };
+
+const unwrapReport = <T>(response: Wrapped<T>): T | undefined => response.report ?? response.data;
 
 const normalizeLeadSummary = (payload?: Partial<LeadSummaryReport> | null): LeadSummaryReport => ({
   totalLeads: Number(payload?.totalLeads ?? 0),
@@ -69,30 +72,30 @@ const buildQuery = (filters: ReportFilters): string => {
 
 export async function getLeadSummaryReport(filters: ReportFilters): Promise<LeadSummaryReport> {
   const response = await apiRequest<Wrapped<LeadSummaryReport>>(`/api/v1/reports/lead-summary${buildQuery(filters)}`);
-  return normalizeLeadSummary(response.data);
+  return normalizeLeadSummary(unwrapReport(response));
 }
 
 export async function getSourcePerformanceReport(filters: ReportFilters): Promise<SourcePerformanceItem[]> {
   const response = await apiRequest<Wrapped<SourcePerformanceItem[]>>(`/api/v1/reports/source-performance${buildQuery(filters)}`);
-  return response.data;
+  return Array.isArray(unwrapReport(response)) ? (unwrapReport(response) as SourcePerformanceItem[]) : [];
 }
 
 export async function getAgentPerformanceReport(filters: ReportFilters): Promise<AgentPerformanceItem[]> {
   const response = await apiRequest<Wrapped<AgentPerformanceItem[]>>(`/api/v1/reports/agent-performance${buildQuery(filters)}`);
-  return response.data;
+  return Array.isArray(unwrapReport(response)) ? (unwrapReport(response) as AgentPerformanceItem[]) : [];
 }
 
 export async function getProjectPerformanceReport(filters: ReportFilters): Promise<ProjectPerformanceItem[]> {
   const response = await apiRequest<Wrapped<ProjectPerformanceItem[]>>(`/api/v1/reports/project-performance${buildQuery(filters)}`);
-  return response.data;
+  return Array.isArray(unwrapReport(response)) ? (unwrapReport(response) as ProjectPerformanceItem[]) : [];
 }
 
 export async function getSalesSummaryReport(filters: ReportFilters): Promise<SalesSummaryReport> {
   const response = await apiRequest<Wrapped<SalesSummaryReport>>(`/api/v1/reports/sales-summary${buildQuery(filters)}`);
-  return normalizeSalesSummary(response.data);
+  return normalizeSalesSummary(unwrapReport(response));
 }
 
 export async function getTaskSummaryReport(filters: ReportFilters): Promise<TaskSummaryReport> {
   const response = await apiRequest<Wrapped<TaskSummaryReport>>(`/api/v1/reports/task-summary${buildQuery(filters)}`);
-  return normalizeTaskSummary(response.data);
+  return normalizeTaskSummary(unwrapReport(response));
 }

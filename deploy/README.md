@@ -37,6 +37,8 @@ That creates:
 sudo mkdir -p /var/www/91bigha/app
 sudo mkdir -p /var/www/91bigha/crm
 sudo mkdir -p /var/www/91bigha/shared
+sudo mkdir -p /var/www/91bigha/shared/uploads/branding
+sudo chown -R www-data:www-data /var/www/91bigha/shared/uploads
 ```
 
 ## 4. Copy files to the server locations
@@ -61,6 +63,7 @@ Set real values for:
 - `DB_PASSWORD`
 - `DATABASE_URL`
 - `AUTH_TOKEN_SECRET`
+- `UPLOADS_DIR` if you want a path other than `/var/www/91bigha/shared/uploads`
 
 ## 5. Install the systemd service
 
