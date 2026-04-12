@@ -54,7 +54,7 @@ import { createProperty, getPropertyTypeOptions, listApiProperties } from "@/lib
 import { getAppSettings, updateAppSettings } from "@/lib/app-settings";
 import { withDbClient } from "@/lib/db";
 import { jsonResponse } from "@/lib/api-response";
-import { getUploadsSubpath } from "@/lib/uploads";
+import { getUploadsSubpath, resolveUploadRequestPath } from "@/lib/uploads";
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
@@ -130,6 +130,40 @@ function buildErrorResponse(error: unknown, request: Request) {
 
   const message = error instanceof Error ? error.message : "Request failed.";
   return jsonResponse({ success: false, message }, 500, request);
+}
+
+const uploadContentTypes: Record<string, string> = {
+  ".avif": "image/avif",
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp"
+};
+
+function getUploadContentType(filePath: string) {
+  return uploadContentTypes[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+}
+
+async function handleUploads(request: Request, method: string, segments: string[]) {
+  if (method !== "GET" || segments.length < 2) {
+    return notFound(request);
+  }
+
+  try {
+    const filePath = resolveUploadRequestPath(segments.slice(1));
+    const file = await fs.readFile(filePath);
+
+    return new Response(file, {
+      headers: {
+        "Cache-Control": "public, max-age=3600",
+        "Content-Type": getUploadContentType(filePath)
+      }
+    });
+  } catch {
+    return new Response("Not found", { status: 404 });
+  }
 }
 
 async function handleDashboard(request: Request, method: string) {
@@ -1417,6 +1451,9 @@ async function handleRequest(request: Request, context: RouteContext, method: st
   try {
     if (segments[0] === "v1") {
       return await handleV1(request, method, segments);
+    }
+    if (segments[0] === "uploads") {
+      return await handleUploads(request, method, segments);
     }
     if (segments[0] === "properties") {
       return await handlePropertiesApi(request, method, segments);
