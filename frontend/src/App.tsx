@@ -22,6 +22,7 @@ import Reports from "@/pages/Reports";
 import Settings from "@/pages/Settings";
 import Projects from "@/pages/projects/Projects";
 import ProjectsEntityPage from "@/pages/projects/ProjectsEntityPage";
+import ProjectEditPage from "@/pages/projects/ProjectEditPage";
 
 function RedirectIfAuthenticated({ children }: { children: JSX.Element }) {
   const { token } = useAuth();
@@ -122,6 +123,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Projects />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/properties/:id/edit"
+            element={
+              <ProtectedRoute>
+                <ProjectEditPage />
               </ProtectedRoute>
             }
           />

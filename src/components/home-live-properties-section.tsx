@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { HomepageProperty } from "@/lib/properties";
 import {
   formatPropertyAddress,
@@ -12,11 +13,18 @@ type HomeLivePropertiesSectionProps = {
 
 function PropertyCard({ property }: { property: HomepageProperty }) {
   const image = property.coverImage || "/assets/img/home/home-03.jpg";
+  const detailHref =
+    property.listingType === "rent"
+      ? `/rent-details/${property.slug}`
+      : `/buy-details/${property.slug}`;
 
   return (
     <div className="col-lg-4 col-md-6 d-flex">
       <div className="property-card flex-fill live-property-card">
-        <div className="property-listing-item p-0 mb-0 shadow-none h-100">
+        <Link
+          href={detailHref}
+          className="property-listing-item p-0 mb-0 shadow-none h-100 d-block text-reset"
+        >
           <div className="buy-grid-img mb-0 rounded-0 live-property-media">
             <img className="img-fluid live-property-image" src={image} alt={property.title} />
             <div className="d-flex align-items-center justify-content-between position-absolute top-0 start-0 end-0 p-3 z-1">
@@ -66,7 +74,7 @@ function PropertyCard({ property }: { property: HomepageProperty }) {
               </li>
             </ul>
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   );

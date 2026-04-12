@@ -50,7 +50,14 @@ import {
   parseReportFilters
 } from "@/lib/report-aggregates";
 import { createProjectEntity, listProjectsEntity } from "@/lib/projects-entity";
-import { createProperty, getPropertyTypeOptions, listApiProperties } from "@/lib/properties";
+import {
+  createProperty,
+  getApiPropertyById,
+  getPropertyTypeOptions,
+  hardDeletePropertyById,
+  listApiProperties,
+  updatePropertyById
+} from "@/lib/properties";
 import { getAppSettings, updateAppSettings } from "@/lib/app-settings";
 import { withDbClient } from "@/lib/db";
 import { jsonResponse } from "@/lib/api-response";
@@ -121,6 +128,151 @@ function toOptionalBoolean(value: unknown) {
     }
   }
   return null;
+}
+
+function toOptionalString(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function toStringList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+async function saveUploadedImage(file: File, folder = "properties") {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  if (!Object.hasOwn(uploadContentTypes, `.${ext}`)) {
+    throw new Error(`Unsupported image type for ${file.name}.`);
+  }
+
+  const filename = `${Date.now()}-${randomUUID()}.${ext}`;
+  const targetDir = getUploadsSubpath(folder);
+  const targetPath = path.join(targetDir, filename);
+  await fs.mkdir(targetDir, { recursive: true });
+  await fs.writeFile(targetPath, Buffer.from(await file.arrayBuffer()));
+  return `/uploads/${folder}/${filename}`;
+}
+
+async function parsePropertyPayload(request: Request) {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (!contentType.includes("multipart/form-data")) {
+    return parseJson<Record<string, unknown>>(request);
+  }
+
+  const form = await parseForm(request);
+  const coverImageFile = form.get("coverImage");
+  const galleryFiles = form
+    .getAll("galleryImages")
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+  const parseOptionalList = (value: unknown) => {
+    if (typeof value !== "string") {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+          .map((item) => item.trim());
+      }
+    } catch {
+      // ignore
+    }
+
+    return trimmed
+      .split(/[\n,]+/g)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const baseCoverImageUrl = toOptionalString(form.get("coverImageUrl")) ?? undefined;
+  const baseImageUrls = parseOptionalList(form.get("imageUrls"));
+  const baseFeatures = parseOptionalList(form.get("features"));
+
+  const payload: Record<string, unknown> = {
+    title: toOptionalString(form.get("title")),
+    description: toOptionalString(form.get("description")) ?? undefined,
+    listingType: toOptionalString(form.get("listingType")),
+    propertyType: toOptionalString(form.get("propertyType")),
+    locality: toOptionalString(form.get("locality")),
+    country: toOptionalString(form.get("country")) ?? undefined,
+    city: toOptionalString(form.get("city")) ?? undefined,
+    state: toOptionalString(form.get("state")) ?? undefined,
+    subLocality: toOptionalString(form.get("subLocality")) ?? undefined,
+    addressLine1: toOptionalString(form.get("addressLine1")) ?? undefined,
+    addressLine2: toOptionalString(form.get("addressLine2")) ?? undefined,
+    landmark: toOptionalString(form.get("landmark")) ?? undefined,
+    pincode: toOptionalString(form.get("pincode")) ?? undefined,
+    status: toOptionalString(form.get("status")) ?? undefined,
+    possessionStatus: toOptionalString(form.get("possessionStatus")) ?? undefined,
+    facing: toOptionalString(form.get("facing")) ?? undefined,
+    latitude: toOptionalNumber(form.get("latitude")) ?? undefined,
+    longitude: toOptionalNumber(form.get("longitude")) ?? undefined,
+    priceAmount: toOptionalNumber(form.get("priceAmount")) ?? undefined,
+    rentAmount: toOptionalNumber(form.get("rentAmount")) ?? undefined,
+    securityDeposit: toOptionalNumber(form.get("securityDeposit")) ?? undefined,
+    maintenanceAmount: toOptionalNumber(form.get("maintenanceAmount")) ?? undefined,
+    priceLabel: toOptionalString(form.get("priceLabel")) ?? undefined,
+    bedrooms: toOptionalNumber(form.get("bedrooms")) ?? undefined,
+    bathrooms: toOptionalNumber(form.get("bathrooms")) ?? undefined,
+    balconies: toOptionalNumber(form.get("balconies")) ?? undefined,
+    floorNumber: toOptionalNumber(form.get("floorNumber")) ?? undefined,
+    floorsTotal: toOptionalNumber(form.get("floorsTotal")) ?? undefined,
+    builtupArea: toOptionalNumber(form.get("builtupArea")) ?? undefined,
+    builtupAreaUnit: toOptionalString(form.get("builtupAreaUnit")) ?? undefined,
+    carpetArea: toOptionalNumber(form.get("carpetArea")) ?? undefined,
+    plotArea: toOptionalNumber(form.get("plotArea")) ?? undefined,
+    parkingCount: toOptionalNumber(form.get("parkingCount")) ?? undefined,
+    furnishingStatus: toOptionalString(form.get("furnishingStatus")) ?? undefined,
+    ageOfProperty: toOptionalNumber(form.get("ageOfProperty")) ?? undefined,
+    coverImageUrl: baseCoverImageUrl,
+    imageUrls: baseImageUrls,
+    features: baseFeatures,
+    source: toOptionalString(form.get("source")) ?? undefined,
+    isFeatured: toOptionalBoolean(form.get("isFeatured")) ?? undefined,
+    isVerified: toOptionalBoolean(form.get("isVerified")) ?? undefined
+  };
+
+  let uploadedCoverUrl: string | null = null;
+  let uploadedGalleryUrls: string[] = [];
+  if (coverImageFile instanceof File && coverImageFile.size > 0) {
+    uploadedCoverUrl = await saveUploadedImage(coverImageFile);
+  }
+
+  if (galleryFiles.length) {
+    uploadedGalleryUrls = await Promise.all(galleryFiles.map((file) => saveUploadedImage(file)));
+  }
+
+  if (uploadedCoverUrl) {
+    payload.coverImageUrl = uploadedCoverUrl;
+  }
+
+  if (uploadedGalleryUrls.length) {
+    payload.imageUrls = uploadedGalleryUrls;
+  }
+
+  return payload;
 }
 
 function buildErrorResponse(error: unknown, request: Request) {
@@ -1150,89 +1302,21 @@ async function handleTeams(request: Request, method: string, segments: string[])
 async function handlePropertyTypes(request: Request, method: string, segments: string[]) {
   requirePermission(request, "manage_users");
 
-  if (segments.length === 2) {
-    if (method === "GET") {
-      const items = await withDbClient(async (client) => {
-        const result = await client.query<{ id: string; name: string; slug: string; property_count: string }>(
-          `
-            select
-              pt.id::text as id,
-              pt.name,
-              pt.slug,
-              count(p.id)::text as property_count
-            from property_types pt
-            left join properties p on p.property_type_id = pt.id and p.deleted_at is null
-            group by pt.id
-            order by pt.name asc
-          `
-        );
-        return result.rows;
-      });
-      return jsonResponse({ success: true, items }, 200, request);
-    }
-
-    if (method === "POST") {
-      const payload = await parseJson<{ name?: string }>(request);
-      const name = String(payload.name || "").trim();
-      if (!name) {
-        return jsonResponse({ success: false, message: "Property type name is required." }, 400, request);
-      }
-
-      const propertyType = await withDbClient(async (client) => {
-        const result = await client.query<{ id: string; name: string; slug: string }>(
-          `
-            insert into property_types (name, slug)
-            values ($1, $2)
-            returning id::text as id, name, slug
-          `,
-          [name, slugify(name)]
-        );
-        return result.rows[0];
-      });
-
-      return jsonResponse({ success: true, propertyType }, 201, request);
-    }
+  if (segments.length === 2 && method === "GET") {
+    const items = (await getPropertyTypeOptions()).map((item) => ({
+      id: String(item.id),
+      name: item.name,
+      slug: item.slug,
+      property_count: "0"
+    }));
+    return jsonResponse({ success: true, items }, 200, request);
   }
 
-  const propertyTypeId = segments[2];
-  if (!propertyTypeId) {
-    return notFound(request);
-  }
-
-  if (method === "PUT") {
-    const payload = await parseJson<{ name?: string }>(request);
-    const name = String(payload.name || "").trim();
-    if (!name) {
-      return jsonResponse({ success: false, message: "Property type name is required." }, 400, request);
-    }
-
-    const propertyType = await withDbClient(async (client) => {
-      const result = await client.query<{ id: string; name: string; slug: string }>(
-        `
-          update property_types
-          set name = $2, slug = $3
-          where id = $1
-          returning id::text as id, name, slug
-        `,
-        [Number(propertyTypeId), name, slugify(name)]
-      );
-      if (!result.rows.length) {
-        throw new Error("Property type not found.");
-      }
-      return result.rows[0];
-    });
-
-    return jsonResponse({ success: true, propertyType }, 200, request);
-  }
-
-  if (method === "DELETE") {
-    await withDbClient(async (client) => {
-      await client.query("delete from property_types where id = $1", [Number(propertyTypeId)]);
-    });
-    return jsonResponse({ success: true, message: "Property type deleted." }, 200, request);
-  }
-
-  return notFound(request);
+  return jsonResponse(
+    { success: false, message: "Property types are fixed in CRM and cannot be modified." },
+    405,
+    request
+  );
 }
 function normalizeHeader(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -1247,9 +1331,32 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
     }
 
     if (method === "POST") {
-      const payload = await parseJson<Record<string, unknown>>(request);
+      const payload = await parsePropertyPayload(request);
       const property = await createProperty(payload as Parameters<typeof createProperty>[0]);
       return jsonResponse({ ok: true, property }, 201, request);
+    }
+  }
+
+  if (segments.length === 2 && segments[1] !== "import") {
+    const propertyId = segments[1];
+
+    if (method === "GET") {
+      const property = await getApiPropertyById(propertyId);
+      if (!property) {
+        return jsonResponse({ ok: false, error: "Property not found.", message: "Property not found." }, 404, request);
+      }
+      return jsonResponse({ ok: true, property }, 200, request);
+    }
+
+    if (method === "PUT") {
+      const payload = await parsePropertyPayload(request);
+      const property = await updatePropertyById(propertyId, payload as Parameters<typeof updatePropertyById>[1]);
+      return jsonResponse({ ok: true, property }, 200, request);
+    }
+
+    if (method === "DELETE") {
+      await hardDeletePropertyById(propertyId);
+      return jsonResponse({ ok: true }, 200, request);
     }
   }
 
@@ -1261,26 +1368,63 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) {
-      return jsonResponse({ ok: false, error: "No worksheet found." }, 400, request);
+    const isJsonFile = file.name.toLowerCase().endsWith(".json") || file.type === "application/json";
+    let rows: Array<Record<string, unknown>> = [];
+
+    if (isJsonFile) {
+      const text = buffer.toString("utf-8").trim();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return jsonResponse({ ok: false, error: "Invalid JSON file." }, 400, request);
+      }
+
+      if (Array.isArray(parsed)) {
+        rows = parsed.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object") as Array<Record<string, unknown>>;
+      } else if (parsed && typeof parsed === "object") {
+        const record = parsed as Record<string, unknown>;
+        const candidateArrays = ["properties", "data", "listings", "items"]
+          .map((key) => record[key])
+          .filter((value): value is unknown[] => Array.isArray(value));
+        const firstArray = candidateArrays[0];
+        if (!firstArray) {
+          return jsonResponse({ ok: false, error: "JSON must be an array of properties or contain a properties/data/listings/items array." }, 400, request);
+        }
+        rows = firstArray.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object") as Array<Record<string, unknown>>;
+      } else {
+        return jsonResponse({ ok: false, error: "JSON must be an array of objects." }, 400, request);
+      }
+    } else {
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      if (!sheetName) {
+        return jsonResponse({ ok: false, error: "No worksheet found." }, 400, request);
+      }
+      const sheet = workbook.Sheets[sheetName];
+      rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
     }
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
+
     const headers = rows.length ? Object.keys(rows[0]) : [];
 
     const aliases: Record<string, string[]> = {
       title: ["title", "name", "property title"],
       listingType: ["listing type", "listing_type", "listing"],
-      propertyTypeId: ["property type id", "property_type_id", "property type"],
+      propertyType: ["property type", "property_type", "property type id", "property_type_id"],
       locality: ["locality", "area"],
+      country: ["country"],
+      subLocality: ["sub locality", "sub_locality", "sublocality"],
       city: ["city"],
       state: ["state"],
       addressLine1: ["address", "address line1", "address1"],
+      addressLine2: ["address line2", "address2", "address_line2"],
+      landmark: ["landmark"],
       pincode: ["pincode", "pin"],
       status: ["status"],
       possessionStatus: ["possession status", "possession_status"],
+      facing: ["facing"],
+      latitude: ["latitude", "lat"],
+      longitude: ["longitude", "lng", "lon"],
       priceAmount: ["price", "price amount", "price_amount"],
       rentAmount: ["rent", "rent amount", "rent_amount"],
       securityDeposit: ["security deposit", "security_deposit"],
@@ -1289,11 +1433,19 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
       bedrooms: ["bedrooms", "beds"],
       bathrooms: ["bathrooms", "baths"],
       balconies: ["balconies"],
+      floorNumber: ["floor number", "floor_number"],
+      floorsTotal: ["floors total", "floors_total", "total floors", "total_floors"],
       builtupArea: ["builtup area", "builtup_area"],
       builtupAreaUnit: ["builtup area unit", "builtup_area_unit"],
+      carpetArea: ["carpet area", "carpet_area"],
+      plotArea: ["plot area", "plot_area"],
       parkingCount: ["parking", "parking count", "parking_count"],
       furnishingStatus: ["furnishing status", "furnishing_status"],
-      coverImageUrl: ["cover image", "cover image url", "cover_image_url"]
+      ageOfProperty: ["age of property", "age_of_property"],
+      features: ["features", "amenities", "amenity"],
+      coverImageUrl: ["cover image", "cover image url", "cover_image_url"],
+      isFeatured: ["is featured", "is_featured", "featured"],
+      isVerified: ["is verified", "is_verified", "verified"]
     };
 
     const headerMap = new Map<string, string>();
@@ -1309,10 +1461,10 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
 
     const propertyTypes = await getPropertyTypeOptions();
     const propertyTypeByName = new Map(
-      propertyTypes.map((type) => [normalizeHeader(type.name), type.id])
+      propertyTypes.map((type) => [normalizeHeader(type.name), type.name])
     );
     const propertyTypeBySlug = new Map(
-      propertyTypes.map((type) => [normalizeHeader(type.slug), type.id])
+      propertyTypes.map((type) => [normalizeHeader(type.slug), type.name])
     );
 
     const imported: Array<{ row: number; propertyCode: string; slug: string }> = [];
@@ -1330,34 +1482,41 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
 
         const title = String(getValue("title") ?? "").trim();
         const listingType = String(getValue("listingType") ?? "").trim();
-        const propertyTypeRaw = getValue("propertyTypeId");
+        const propertyTypeRaw = getValue("propertyType");
         const locality = String(getValue("locality") ?? "").trim();
 
         if (!title || !listingType || !locality || !propertyTypeRaw) {
           throw new Error("Missing required fields (title, listingType, propertyType, locality).");
         }
 
-        let propertyTypeId = Number(propertyTypeRaw);
-        if (!Number.isFinite(propertyTypeId)) {
-          const normalized = normalizeHeader(String(propertyTypeRaw));
-          propertyTypeId = propertyTypeByName.get(normalized) || propertyTypeBySlug.get(normalized) || 0;
-        }
+        const normalizedPropertyType = normalizeHeader(String(propertyTypeRaw));
+        const propertyType =
+          propertyTypeByName.get(normalizedPropertyType) ||
+          propertyTypeBySlug.get(normalizedPropertyType) ||
+          String(propertyTypeRaw).trim();
 
-        if (!propertyTypeId) {
+        if (!propertyType) {
           throw new Error("Invalid property type.");
         }
 
         const payload = {
           title,
           listingType,
-          propertyTypeId,
+          propertyType,
           locality,
+          country: String(getValue("country") ?? "").trim() || undefined,
+          subLocality: String(getValue("subLocality") ?? "").trim() || undefined,
           city: String(getValue("city") ?? "").trim() || undefined,
           state: String(getValue("state") ?? "").trim() || undefined,
           addressLine1: String(getValue("addressLine1") ?? "").trim() || undefined,
+          addressLine2: String(getValue("addressLine2") ?? "").trim() || undefined,
+          landmark: String(getValue("landmark") ?? "").trim() || undefined,
           pincode: String(getValue("pincode") ?? "").trim() || undefined,
           status: String(getValue("status") ?? "").trim() || undefined,
           possessionStatus: String(getValue("possessionStatus") ?? "").trim() || undefined,
+          facing: String(getValue("facing") ?? "").trim() || undefined,
+          latitude: toOptionalNumber(getValue("latitude")) ?? undefined,
+          longitude: toOptionalNumber(getValue("longitude")) ?? undefined,
           priceAmount: toOptionalNumber(getValue("priceAmount")) ?? undefined,
           rentAmount: toOptionalNumber(getValue("rentAmount")) ?? undefined,
           securityDeposit: toOptionalNumber(getValue("securityDeposit")) ?? undefined,
@@ -1366,11 +1525,17 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
           bedrooms: toOptionalNumber(getValue("bedrooms")) ?? undefined,
           bathrooms: toOptionalNumber(getValue("bathrooms")) ?? undefined,
           balconies: toOptionalNumber(getValue("balconies")) ?? undefined,
+          floorNumber: toOptionalNumber(getValue("floorNumber")) ?? undefined,
+          floorsTotal: toOptionalNumber(getValue("floorsTotal")) ?? undefined,
           builtupArea: toOptionalNumber(getValue("builtupArea")) ?? undefined,
           builtupAreaUnit: String(getValue("builtupAreaUnit") ?? "").trim() || undefined,
+          carpetArea: toOptionalNumber(getValue("carpetArea")) ?? undefined,
+          plotArea: toOptionalNumber(getValue("plotArea")) ?? undefined,
           parkingCount: toOptionalNumber(getValue("parkingCount")) ?? undefined,
           furnishingStatus: String(getValue("furnishingStatus") ?? "").trim() || undefined,
+          ageOfProperty: toOptionalNumber(getValue("ageOfProperty")) ?? undefined,
           coverImageUrl: String(getValue("coverImageUrl") ?? "").trim() || undefined,
+          features: toStringList(getValue("features")) || undefined,
           isFeatured: toOptionalBoolean(getValue("isFeatured")) ?? undefined,
           isVerified: toOptionalBoolean(getValue("isVerified")) ?? undefined
         };
@@ -1462,7 +1627,7 @@ async function handleRequest(request: Request, context: RouteContext, method: st
   } catch (error) {
     if (segments[0] === "properties") {
       const message = error instanceof Error ? error.message : "Request failed.";
-      return jsonResponse({ ok: false, error: message }, 500, request);
+      return jsonResponse({ ok: false, error: message, message }, 500, request);
     }
     return buildErrorResponse(error, request);
   }

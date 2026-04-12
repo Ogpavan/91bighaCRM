@@ -140,19 +140,17 @@ export async function searchGlobal(query: string, actor: SearchActor) {
           select
             p.id::text as id,
             p.title as label,
-            concat_ws(' · ', pt.name, l.locality, l.city) as sublabel,
+            concat_ws(' · ', p.property_type, p.locality, p.city) as sublabel,
             'property' as type,
             '/properties' as href,
             4 as sort_group
           from properties p
-          join property_types pt on pt.id = p.property_type_id
-          join property_locations l on l.id = p.location_id
           where p.deleted_at is null
             and (
               p.title ilike $1
               or p.property_code ilike $1
-              or coalesce(l.locality, '') ilike $1
-              or coalesce(l.city, '') ilike $1
+              or coalesce(p.locality, '') ilike $1
+              or coalesce(p.city, '') ilike $1
             )
           order by coalesce(p.published_at, p.created_at) desc
           limit 6

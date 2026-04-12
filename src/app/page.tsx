@@ -1,22 +1,31 @@
 import Link from "next/link";
 import { HomeLivePropertiesSection } from "@/components/home-live-properties-section";
-import type { HomepageProperty } from "@/lib/properties";
-import { listHomepageProperties } from "@/lib/properties";
 import {
   formatPropertyAddress,
   formatPropertyArea,
   formatPropertyPrice,
   formatPublishedDate
 } from "@/lib/home-property-formatters";
+import type { HomepageProperty } from "@/lib/properties";
+import {
+  getPropertyTypeOptions,
+  listHomepageProperties,
+  listPropertyTypeCounts,
+  type PropertyTypeCount
+} from "@/lib/properties";
 
 export default async function HomePage() {
   let saleProperties: HomepageProperty[] = [];
   let rentProperties: HomepageProperty[] = [];
+  let propertyTypeCounts: PropertyTypeCount[] = [];
+
+  const propertyTypeOptions = await getPropertyTypeOptions();
 
   try {
-    [saleProperties, rentProperties] = await Promise.all([
+    [saleProperties, rentProperties, propertyTypeCounts] = await Promise.all([
       listHomepageProperties("sale", 6),
-      listHomepageProperties("rent", 6)
+      listHomepageProperties("rent", 6),
+      listPropertyTypeCounts(6)
     ]);
   } catch (error) {
     console.error("Failed to load homepage property data", error);
@@ -28,7 +37,7 @@ export default async function HomePage() {
 			<div className="container">
 				<div className="row">
 					<div className="col-lg-6">
-						<div className="banner-content aos" data-aos="fade-up">
+						<div className="banner-content">
 							<h1 className="mb-2">Find property in <span className="hero-city-highlight">Bareilly</span> for buying, renting, and investment.</h1>
 							<p className="mb-0">Explore verified homes, plots, and rentals across Civil Lines, DD Puram, Rajendra Nagar, Izatnagar, and nearby Bareilly localities.</p>
 						</div>
@@ -36,7 +45,7 @@ export default async function HomePage() {
 				</div>
 
 				<div className="home-search-1 home-search-2">
-					<ul className="nav nav-tabs justify-content-lg-start justify-content-center aos" data-aos="fade-up" role="tablist">
+					<ul className="nav nav-tabs justify-content-lg-start justify-content-center" role="tablist">
 						<li className="nav-item" role="presentation">
 							<a className="nav-link active" data-bs-toggle="tab" href="#buy_property" role="tab" aria-controls="buy_property" aria-selected="true">
 								<i className="material-icons-outlined me-2">shopping_basket</i>Buy Property
@@ -49,39 +58,33 @@ export default async function HomePage() {
 						</li>
 					</ul>
 
-					<div className="tab-content aos" data-aos="fade-down" data-aos-duration="1000">
+					<div className="tab-content">
 						<div className="tab-pane fade show active" id="buy_property" role="tabpanel">
 							<div className="search-item">
-								<form action="/buy-property-grid-sidebar">
+								<form action="/buy-property-grid-sidebar" method="get">
 									<div className="d-flex align-items-bottom flex-wrap flex-lg-nowrap gap-3">
 										<div className="flex-fill select-field w-100">
-											<label className="form-label">Intent</label>
-											<select className="select">
-												<option>Buy Home</option>
-												<option>New Launch</option>
-												<option>Investment</option>
-											</select>
-										</div>
-										<div className="flex-fill select-field w-100">
 											<label className="form-label">Property Type</label>
-											<select className="select">
-												<option>Apartment</option>
-												<option>Villa</option>
-												<option>Independent House</option>
-												<option>Plot</option>
+											<select className="form-select" name="propertyType" defaultValue="">
+												<option value="">All Types</option>
+												{propertyTypeOptions.map((option) => (
+													<option key={option.slug} value={option.name}>
+														{option.name}
+													</option>
+												))}
 											</select>
 										</div>
 										<div className="flex-fill select-field w-100">
 											<label className="form-label">Location</label>
-											<input type="text" className="form-control" placeholder="Enter Bareilly locality" />
+											<input type="text" name="location" className="form-control" placeholder="Enter Bareilly locality" />
 										</div>
 										<div className="flex-fill select-field w-100">
 											<label className="form-label">Min Budget</label>
-											<input type="text" className="form-control" placeholder="₹25 Lakh" />
+											<input type="number" name="minPrice" min="0" step="100000" className="form-control" placeholder="2500000" />
 										</div>
 										<div className="flex-fill select-field w-100">
 											<label className="form-label">Max Budget</label>
-											<input type="text" className="form-control" placeholder="₹2 Crore" />
+											<input type="number" name="maxPrice" min="0" step="100000" className="form-control" placeholder="20000000" />
 										</div>
 										<div className="custom-search-item d-flex align-items-end">
 											<button type="submit" className="btn btn-primary">
@@ -95,37 +98,30 @@ export default async function HomePage() {
 
 						<div className="tab-pane fade" id="rent_property" role="tabpanel">
 							<div className="search-item">
-								<form action="/rent-property-grid-sidebar">
+								<form action="/rent-property-grid-sidebar" method="get">
 									<div className="d-flex align-items-bottom flex-wrap flex-lg-nowrap gap-3">
 										<div className="flex-fill select-field w-100">
-											<label className="form-label">Tenant Type</label>
-											<select className="select">
-												<option>Family</option>
-												<option>Bachelor</option>
-												<option>Company Lease</option>
-												<option>Student</option>
-											</select>
-										</div>
-										<div className="flex-fill select-field w-100">
 											<label className="form-label">Property Type</label>
-											<select className="select">
-												<option>Apartment</option>
-												<option>Studio</option>
-												<option>Villa</option>
-												<option>PG</option>
+											<select className="form-select" name="propertyType" defaultValue="">
+												<option value="">All Types</option>
+												{propertyTypeOptions.map((option) => (
+													<option key={option.slug} value={option.name}>
+														{option.name}
+													</option>
+												))}
 											</select>
 										</div>
 										<div className="flex-fill select-field w-100">
 											<label className="form-label">Location</label>
-											<input type="text" className="form-control" placeholder="Enter Bareilly rental area" />
+											<input type="text" name="location" className="form-control" placeholder="Enter Bareilly rental area" />
 										</div>
 										<div className="flex-fill select-field w-100">
 											<label className="form-label">Min Rent</label>
-											<input type="text" className="form-control" placeholder="₹8,000 /month" />
+											<input type="number" name="minPrice" min="0" step="1000" className="form-control" placeholder="8000" />
 										</div>
 										<div className="flex-fill select-field w-100">
 											<label className="form-label">Max Rent</label>
-											<input type="text" className="form-control" placeholder="₹35,000 /month" />
+											<input type="number" name="maxPrice" min="0" step="1000" className="form-control" placeholder="35000" />
 										</div>
 										<div className="custom-search-item d-flex align-items-end">
 											<button type="submit" className="btn btn-primary">
@@ -139,8 +135,8 @@ export default async function HomePage() {
 					</div>
 				</div>
 			</div>
-		</section>
-		<section className="how-work-section section-padding">
+			</section>
+			<section className="how-work-section section-padding">
 			<div className="container">
 
 				
@@ -197,7 +193,7 @@ export default async function HomePage() {
 				
 				
 				<div className="row position-relative">
-					<div className="col-lg-4 aos" data-aos="fade-down" data-aos-duration="1000">
+					<div className="col-lg-4">
 						
 						<div className="section-heading">
 							<h2 className="mb-2 text-lg-start text-center text-white">Explore by  <span className="d-lg-block "> Property Type </span></h2>
@@ -212,57 +208,28 @@ export default async function HomePage() {
 
 					<div className="col-lg-8">
 						<div className="property-slider">
-							<div className="property-item aos" data-aos="fade-up" data-aos-duration="1000">
-								<div className="property-card-item">
-									<div className="mb-3 text-center">
-										<img src="/assets/img/home/icons/property-icon-1.svg" alt="property-icon-1" className="m-auto" />
+							{propertyTypeCounts.length ? propertyTypeCounts.map((propertyType, index) => (
+								<div key={propertyType.slug} className="property-item">
+									<div className="property-card-item">
+										<div className="mb-3 text-center">
+											<img
+												src={`/assets/img/home/icons/property-icon-${(index % 4) + 1}.svg`}
+												alt={propertyType.name}
+												className="m-auto"
+											/>
+										</div>
+										<h5 className="mb-1">{propertyType.name}</h5>
+										<p className="mb-0">{propertyType.propertyCount} Properties</p>
 									</div>
-									<h5 className="mb-1"> Houses </h5>
-									<p className="mb-0"> 30 Properties</p>
 								</div>
-							</div>
-
-							<div className="property-item">
-								<div className="property-card-item aos" data-aos="fade-down" data-aos-duration="1000">
-									<div className="mb-3 text-center">
-										<img src="/assets/img/home/icons/property-icon-2.svg" alt="property-icon-1" className="m-auto" />
+							)) : (
+								<div className="property-item">
+									<div className="property-card-item">
+										<h5 className="mb-1">Property inventory updates soon</h5>
+										<p className="mb-0">Upload listings to see live property types here.</p>
 									</div>
-									<h5 className="mb-1"> Offices </h5>
-									<p className="mb-0"> 45 Properties</p>
 								</div>
-							</div>
-
-							<div className="property-item aos" data-aos="fade-up" data-aos-duration="1000">
-								<div className="property-card-item">
-									<div className="mb-3 text-center">
-										<img src="/assets/img/home/icons/property-icon-3.svg" alt="property-icon-1" className="m-auto" />
-									</div>
-									<h5 className="mb-1"> Villas </h5>
-									<p className="mb-0"> 28 Properties</p>
-								</div>
-							</div>
-
-							<div className="property-item aos" data-aos="fade-down" data-aos-duration="1000">
-								<div className="property-card-item">
-									<div className="mb-3 text-center">
-										<img src="/assets/img/home/icons/property-icon-4.svg" alt="property-icon-1" className="m-auto" />
-									</div>
-									<h5 className="mb-1"> Apartment </h5>
-									<p className="mb-0"> 35 Properties</p>
-								</div>
-							</div>
-
-							<div className="property-item aos" data-aos="fade-up" data-aos-duration="1000">
-								<div className="property-card-item">
-									<div className="mb-3 text-center">
-										<img src="/assets/img/home/icons/property-icon-4.svg" alt="property-icon-1" className="m-auto" />
-									</div>
-									<h5 className="mb-1"> Apartment </h5>
-									<p className="mb-0"> 30 Properties</p>
-								</div>
-							</div>
-							
-
+							)}
 						</div>
 					</div>
 				</div>
@@ -390,6 +357,7 @@ export default async function HomePage() {
 				</div>
 			</div>
 		</section>
+		{false ? (
 		<section className="features-section featured-rent-section section-padding bg-light position-relative">
 			<div className="container">
 
@@ -412,7 +380,7 @@ export default async function HomePage() {
                             <div className="property-card flex-fill">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-01.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute top-0 start-0 end-0 p-3 z-1">
@@ -473,7 +441,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Aarav Sharma<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -485,7 +453,7 @@ export default async function HomePage() {
                             <div className="property-card flex-fill property-card mb-0">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-04.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute bottom-0 end-0 start-0 p-3 z-1">
@@ -536,7 +504,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Sana Khan<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -551,7 +519,7 @@ export default async function HomePage() {
                             <div className="property-card flex-fill">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-02.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute bottom-0 end-0 start-0 p-3 z-1">
@@ -602,7 +570,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Neha Verma<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -614,7 +582,7 @@ export default async function HomePage() {
                             <div className="property-card flex-fill mb-0">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-05.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute bottom-0 end-0 start-0 p-3 z-1">
@@ -665,7 +633,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Ritika Sinha<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -680,7 +648,7 @@ export default async function HomePage() {
                             <div className="property-card flex-fill">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-03.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute bottom-0 end-0 start-0 p-3 z-1">
@@ -731,7 +699,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Mohit Saxena<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -743,7 +711,7 @@ export default async function HomePage() {
                             <div className="property-card flex-fill mb-0">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-06.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute bottom-0 end-0 start-0 p-3 z-1">
@@ -794,7 +762,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Priya Agrawal<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -809,7 +777,7 @@ export default async function HomePage() {
                             <div className="property-card flex-fill">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-07.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute bottom-0 end-0 start-0 p-3 z-1">
@@ -860,7 +828,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Karan Gupta<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -872,7 +840,7 @@ export default async function HomePage() {
                             <div className="property-card mb-0 flex-fill">
                                 <div className="property-listing-item p-0 mb-0 shadow-none">
                                     <div className="buy-grid-img mb-0 rounded-0">
-                                        <a href="/rent-details.html">
+                                        <a href="/rent-details">
                                             <img className="img-fluid" src="/assets/img/rent/rent-grid-img-08.jpg" alt="" />
                                         </a>
                                         <div className="d-flex align-items-center justify-content-between position-absolute bottom-0 end-0 start-0 p-3 z-1">
@@ -923,7 +891,7 @@ export default async function HomePage() {
                                                 </div>
                                                 <a href="javascript:void(0);" className="mb-0 fs-16 fw-medium text-dark">Ishita Kapoor<span className="d-block fs-14 text-body pt-1">Bareilly, India</span> </a>
                                             </div>
-                                            <a href="/rent-details.html" className="btn btn-dark">Book Now</a>
+                                            <a href="/rent-details" className="btn btn-dark">Book Now</a>
                                         </div>
                                     </div>
                                 </div> 
@@ -937,9 +905,8 @@ export default async function HomePage() {
 				</div>
 			</div>
 		</section>
+		) : null}
 		
-
-		 
 		<section className="statistics-section section-padding bg-dark position-relative">
 			<div className="container">
 
@@ -1126,11 +1093,8 @@ export default async function HomePage() {
 					<div className="testimonials-slide">
 						
 						<div className="testimonials-item aos" data-aos="fade-down" data-aos-duration="1000">
-							<div className="avatar avatar-lg mb-4">
-								<img src="/assets/img/users/user-02.jpg" alt="user-01" className="img-fluid rounded-circle" />
-							</div>
 							<p className="mb-2"> Booking our dream home was incredibly easy with 91bigha.com The interface was user-friendly </p>
-							<h6 className="mb-2"> Lily Brooks </h6>
+							<h6 className="mb-2"> Ananya Sharma </h6>
 							<div className="d-flex align-items-center justify-content-center">
 								<i className="material-icons-outlined text-warning">star</i>
 								<i className="material-icons-outlined text-warning">star</i>
@@ -1144,11 +1108,8 @@ export default async function HomePage() {
 					<div className="testimonials-slide">
 						
 						<div className="testimonials-item aos" data-aos="fade-up" data-aos-duration="1000">
-							<div className="avatar avatar-lg mb-4">
-								<img src="/assets/img/users/user-01.jpg" alt="user-01" className="img-fluid rounded-circle" />
-							</div>
 							<p className="mb-2"> 91bigha.com made home booking a breeze. Super easy and stress-free! listing Portal of all time </p>
-							<h6 className="mb-2">Daniel Cooper </h6>
+							<h6 className="mb-2"> Rohan Verma </h6>
 							<div className="d-flex align-items-center justify-content-center">
 								<i className="material-icons-outlined text-warning">star</i>
 								<i className="material-icons-outlined text-warning">star</i>
@@ -1162,11 +1123,8 @@ export default async function HomePage() {
 					<div className="testimonials-slide">
 						
 						<div className="testimonials-item aos" data-aos="fade-down" data-aos-duration="1000">
-							<div className="avatar avatar-lg mb-4">
-								<img src="/assets/img/users/user-03.jpg" alt="user-01" className="img-fluid rounded-circle" />
-							</div>
 							<p className="mb-2"> From browsing to booking, everything felt effortless great design, clear information.</p>
-							<h6 className="mb-2"> Karen Maria </h6>
+							<h6 className="mb-2"> Priya Singh </h6>
 							<div className="d-flex align-items-center justify-content-center">
 								<i className="material-icons-outlined text-warning">star</i>
 								<i className="material-icons-outlined text-warning">star</i>
@@ -1180,11 +1138,8 @@ export default async function HomePage() {
 					<div className="testimonials-slide">
 						
 						<div className="testimonials-item aos" data-aos="fade-up" data-aos-duration="1000">
-							<div className="avatar avatar-lg mb-4">
-								<img src="/assets/img/users/user-04.jpg" alt="user-01" className="img-fluid rounded-circle" />
-							</div>
 							<p className="mb-2"> Inding the perfect home was a breeze. The platform was smooth, intuitive, and made experience. </p>
-							<h6 className="mb-2"> John Carter </h6>
+							<h6 className="mb-2"> Vivek Mishra </h6>
 							<div className="d-flex align-items-center justify-content-center">
 								<i className="material-icons-outlined text-warning">star</i>
 								<i className="material-icons-outlined text-warning">star</i>
@@ -1198,11 +1153,8 @@ export default async function HomePage() {
 					<div className="testimonials-slide">
 						
 						<div className="testimonials-item aos" data-aos="fade-down" data-aos-duration="1000">
-							<div className="avatar avatar-lg mb-4">
-								<img src="/assets/img/users/user-06.jpg" alt="user-01" className="img-fluid rounded-circle" />
-							</div>
 							<p className="mb-2"> 91bigha.com made home booking a breeze. Super easy and stress-free! listing Portal of all time </p>
-							<h6 className="mb-2"> Daniel Cooper </h6>
+							<h6 className="mb-2"> Sneha Gupta </h6>
 							<div className="d-flex align-items-center justify-content-center">
 								<i className="material-icons-outlined text-warning">star</i>
 								<i className="material-icons-outlined text-warning">star</i>
@@ -1388,109 +1340,6 @@ export default async function HomePage() {
 		</section>
 		 
 
-		 
-		<section className="home-blog-section section-padding ">
-			<div className="container">
-
-				
-				<div className="section-heading aos" data-aos="fade-down" data-aos-duration="1000">
-					<h2 className="mb-2 text-center">Latest Blog</h2>
-					<div className="sec-line">
-						<span className="sec-line1"></span>
-						<span className="sec-line2"></span>
-					</div>
-					<p className="mb-0 text-center"> Explore our featured blog posts on premium properties for sales & rents.</p>
-				</div>
-				
-
-
-				
-                    <div className="row row-gap-4 justify-content-center">
-
-						<div className="col-md-6 col-lg-4 d-flex aos" data-aos="fade-down" data-aos-duration="1500">
-                            <div className="blog-item-01 flex-fill">
-                                <div className="blog-img">
-                                    <a href="/blog-details.html"><img src="/assets/img/blogs/blog-img-01.jpg" alt="img" className="img-fluid" /></a>
-                                </div>
-                                <div className="blog-content">
-                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
-                                        <span className="badge badge-sm bg-secondary fw-semibold">Property</span>
-                                        <div className="d-flex align-items-center author-details">
-                                            <div className="d-flex align-items-center me-3">
-                                                <a href="/agent-details.html"><img src="/assets/img/agents/agent-01.jpg" alt="" className="avatar avatar-sm rounded-circle me-2" /></a>
-                                                <a href="/agent-details.html">Susan Culli</a>
-                                            </div>
-											<span className="d-inline-flex align-items-center"><i className="material-icons-outlined me-1">events</i>10 Apr 2025</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h5 className="mb-1"><a href="/blog-details.html">Location is Everything</a></h5>
-                                        <p className="mb-0">The value of a property largely depends on where it’s located.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-
-                        <div className="col-md-6 col-lg-4 d-flex aos" data-aos="fade-down" data-aos-duration="1500">
-                            <div className="blog-item-01 flex-fill">
-                                <div className="blog-img">
-                                    <a href="/blog-details.html"><img src="/assets/img/blogs/blog-img-02.jpg" alt="img" className="img-fluid" /></a>
-                                </div>
-                                <div className="blog-content">
-                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
-                                        <span className="badge badge-sm bg-secondary fw-semibold">Vila</span>
-                                        <div className="d-flex align-items-center author-details">
-                                            <div className="d-flex align-items-center me-3">
-                                                <a href="/agent-details.html"><img src="/assets/img/agents/agent-04.jpg" alt="" className="avatar avatar-sm rounded-circle me-2" /></a>
-                                                <a href="/agent-details.html">Shelly Cox</a>
-                                            </div>
-											<span className="d-inline-flex align-items-center"><i className="material-icons-outlined me-1">events</i>24 Apr 2025</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h5 className="mb-1"><a href="/blog-details.html">Real Estate is a Investment</a></h5>
-                                        <p className="mb-0">Unlike stocks, real estate usually grows in value over time.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="col-md-6 col-lg-4 d-flex aos" data-aos="fade-down" data-aos-duration="1500">
-                            <div className="blog-item-01 flex-fill">
-                                <div className="blog-img">
-                                    <a href="/blog-details.html"><img src="/assets/img/blogs/blog-img-03.jpg" alt="img" className="img-fluid" /></a>
-                                </div>
-                                <div className="blog-content">
-                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
-                                        <span className="badge badge-sm bg-secondary fw-semibold">Godown</span>
-                                        <div className="d-flex align-items-center author-details">
-                                            <div className="d-flex align-items-center me-3">
-                                                <a href="/agent-details.html"><img src="/assets/img/agents/agent-02.jpg" alt="" className="avatar avatar-sm rounded-circle me-2" /></a>
-                                                <a href="/agent-details.html">Eva Jones</a>
-                                            </div>
-											<span className="d-inline-flex align-items-center"><i className="material-icons-outlined me-1">events</i>27 Sep 2025</span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h5 className="mb-1"><a href="/blog-details.html">Market Trends Matter</a></h5>
-                                        <p className="mb-0">Staying informed about housing market trends helps you make smarter.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-					</div>
-
-				<div className="text-center d-flex align-items-center justify-content-center m-auto">
-					<a href="/rent-property-grid.html" className="btn btn-lg btn-dark d-flex align-items-center gap-1"> Explore All <i className="material-icons-outlined">arrow_forward</i></a>
-				</div>
-
-			</div>
-		</section>
-		 
-
-		 
 		<section className="home-support-section section-padding bg-light">
 			<div className="container">
 

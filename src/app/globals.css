@@ -19,6 +19,29 @@ a {
   line-height: 1 !important;
 }
 
+.site-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1;
+}
+
+.site-brand-logo {
+  width: auto;
+  height: 44px !important;
+  object-fit: contain;
+}
+
+header .main-menu-wrapper .menu-header .menu-logo .site-brand-logo {
+  height: 34px !important;
+}
+
+@media (max-width: 991.98px) {
+  .site-brand-logo {
+    height: 38px !important;
+  }
+}
+
 .text-logo {
   display: inline-flex;
   align-items: center;
@@ -156,6 +179,224 @@ a {
 
 .contact-enquiry-form textarea.form-control {
   min-height: 160px;
+}
+
+.contact-enquiry-form-compact .form-control,
+.contact-enquiry-form-compact .form-select {
+  min-height: 46px;
+}
+
+.contact-enquiry-form-compact textarea.form-control {
+  min-height: 110px;
+}
+
+.contact-enquiry-form-compact .btn {
+  min-width: 180px;
+}
+
+.enquiry-form-actions {
+  flex-wrap: nowrap;
+}
+
+.enquiry-form-actions .btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.property-back-icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.property-back-icon-btn:hover {
+  color: #0d6efd;
+  border-color: rgba(13, 110, 253, 0.45);
+}
+
+.property-detail-page.section-padding {
+  padding-top: 16px !important;
+}
+
+.property-detail-shell {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.property-hero-image {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.property-hero-image img {
+  width: 100%;
+  max-height: 470px;
+  object-fit: cover;
+}
+
+.property-thumb-image {
+  width: 100%;
+  height: 86px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.property-thumb-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.property-thumb-button-active .property-thumb-image {
+  border-color: rgba(13, 110, 253, 0.75);
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.16);
+}
+
+.property-top-facts-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+.property-top-fact-bar-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1 1 180px;
+  text-align: center;
+}
+
+.property-top-fact-icon {
+  font-size: 18px;
+  color: #0d6efd;
+}
+
+.property-top-fact-pipe {
+  margin-left: 12px;
+  margin-right: 4px;
+  color: #94a3b8;
+}
+
+.property-top-fact-label {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.property-top-fact-value {
+  font-size: 14px;
+}
+
+.property-summary-below-image {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding-bottom: 20px;
+  margin-top: 4px;
+}
+
+.property-title-price-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.property-page-title {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.property-page-price {
+  white-space: nowrap;
+}
+
+.property-detail-section {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.property-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 24px;
+}
+
+.property-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(15, 23, 42, 0.08);
+}
+
+.property-detail-label {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.property-detail-value {
+  color: #0f172a;
+  font-size: 14px;
+  text-align: right;
+  word-break: break-word;
+}
+
+.property-contact-card {
+  position: sticky;
+  top: 0;
+  margin-top: 0;
+}
+
+@media (max-width: 991.98px) {
+  .property-detail-page.section-padding {
+    padding-top: 12px !important;
+  }
+
+  .enquiry-form-actions {
+    flex-wrap: wrap;
+  }
+
+  .enquiry-form-actions .btn {
+    flex: 1 1 100%;
+  }
+
+  .property-contact-card {
+    position: static;
+    top: auto;
+    margin-top: 0;
+  }
+
+  .property-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .property-title-price-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .property-top-fact-bar-item {
+    flex: 1 1 48%;
+  }
 }
 
 .contact-service-list li:last-child {

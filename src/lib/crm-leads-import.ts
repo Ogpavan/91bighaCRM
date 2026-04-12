@@ -234,7 +234,7 @@ export async function importLeadsFromFile(input: {
 
   const lookups = await buildLookupMaps();
   const propertyTypes = await getPropertyTypeOptions();
-  const defaultPropertyTypeId = propertyTypes[0]?.id;
+  const defaultPropertyType = propertyTypes[0]?.name;
   const errors: Array<{ row: number; message: string }> = [];
   let importedCount = 0;
 
@@ -260,14 +260,14 @@ export async function importLeadsFromFile(input: {
         projectId = resolveOptionalByIdOrName(projectValue, lookups.projects);
 
         if (projectId === null) {
-          if (!defaultPropertyTypeId) {
+          if (!defaultPropertyType) {
             throw new Error(`Project "${projectValue}" was not found and no property types are configured to create it.`);
           }
 
           const createdProject = await createProperty({
             title: projectValue,
             listingType: "sale",
-            propertyTypeId: defaultPropertyTypeId,
+            propertyType: defaultPropertyType,
             locality: projectValue,
             city: "Bareilly",
             state: "Uttar Pradesh",

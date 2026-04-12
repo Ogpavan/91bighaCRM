@@ -1,4 +1,4 @@
-import { apiRequest } from "@/api/api";
+import { getCrmPropertyTypeItems } from "@/lib/property-types";
 
 export type PropertyTypeItem = {
   id: string;
@@ -18,28 +18,20 @@ type PropertyTypeResponse = {
 };
 
 export async function getPropertyTypes(): Promise<PropertyTypeItem[]> {
-  const response = await apiRequest<PropertyTypesResponse>("/api/v1/property-types");
-  return response.items;
+  return getCrmPropertyTypeItems().map((item) => ({
+    ...item,
+    property_count: "0"
+  }));
 }
 
 export async function createPropertyType(payload: { name: string }): Promise<PropertyTypeItem> {
-  const response = await apiRequest<PropertyTypeResponse>("/api/v1/property-types", {
-    method: "POST",
-    body: payload
-  });
-  return response.propertyType;
+  throw new Error(`Property types are fixed in CRM. "${payload.name}" cannot be created.`);
 }
 
 export async function updatePropertyType(propertyTypeId: string, payload: { name: string }): Promise<PropertyTypeItem> {
-  const response = await apiRequest<PropertyTypeResponse>(`/api/v1/property-types/${propertyTypeId}`, {
-    method: "PUT",
-    body: payload
-  });
-  return response.propertyType;
+  throw new Error(`Property types are fixed in CRM. "${payload.name}" cannot be updated.`);
 }
 
 export async function deletePropertyType(propertyTypeId: string): Promise<void> {
-  await apiRequest<{ success: boolean; message: string }>(`/api/v1/property-types/${propertyTypeId}`, {
-    method: "DELETE"
-  });
+  throw new Error(`Property types are fixed in CRM. "${propertyTypeId}" cannot be deleted.`);
 }

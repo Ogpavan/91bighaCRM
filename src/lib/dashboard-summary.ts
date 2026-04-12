@@ -76,7 +76,7 @@ async function getWorkspaceSummary(client: Queryable) {
       client.query<CountRow>("select count(*)::text as count from projects"),
       client.query<CountRow>("select count(*)::text as count from projects where lower(status) = 'active'"),
       client.query<CountRow>("select count(*)::text as count from properties where deleted_at is null"),
-      client.query<CountRow>("select count(*)::text as count from property_types"),
+      client.query<CountRow>("select count(distinct property_type)::text as count from properties where deleted_at is null and coalesce(property_type, '') <> ''"),
       client.query<LabeledCountRow>(
         `
           select
@@ -93,13 +93,13 @@ async function getWorkspaceSummary(client: Queryable) {
       client.query<LabeledCountRow>(
         `
           select
-            pt.name as label,
+            p.property_type as label,
             count(p.id)::text as count
-          from property_types pt
-          left join properties p on p.property_type_id = pt.id and p.deleted_at is null
-          group by pt.id, pt.name
-          having count(p.id) > 0
-          order by count(p.id) desc, pt.name asc
+          from properties p
+          where p.deleted_at is null
+            and coalesce(p.property_type, '') <> ''
+          group by p.property_type
+          order by count(p.id) desc, p.property_type asc
           limit 6
         `
       )

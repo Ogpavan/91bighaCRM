@@ -88,16 +88,9 @@ export async function verifyPropertySchema() {
     from information_schema.tables
     where table_schema = 'public'
       and table_name in (
-        'property_types',
         'contacts',
         'users',
-        'property_locations',
         'properties',
-        'property_pricing',
-        'property_specs',
-        'property_features',
-        'property_feature_map',
-        'property_media',
         'property_leads',
         'property_crm_sync_logs'
       )
@@ -105,28 +98,19 @@ export async function verifyPropertySchema() {
   `);
 
   const countsResult = await db.query<{
-    property_types_count: string;
-    property_locations_count: string;
     properties_count: string;
+    property_types_count: string;
   }>(`
     select
-      (select count(*)::text from property_types) as property_types_count,
-      (select count(*)::text from property_locations) as property_locations_count,
-      (select count(*)::text from properties) as properties_count
+      (select count(*)::text from properties) as properties_count,
+      (select count(distinct property_type)::text from properties where deleted_at is null and coalesce(property_type, '') <> '') as property_types_count
   `);
 
   const expectedTables = [
     "contacts",
     "properties",
     "property_crm_sync_logs",
-    "property_feature_map",
-    "property_features",
     "property_leads",
-    "property_locations",
-    "property_media",
-    "property_pricing",
-    "property_specs",
-    "property_types",
     "users"
   ];
 
@@ -139,7 +123,6 @@ export async function verifyPropertySchema() {
     missingTables,
     counts: {
       propertyTypes: Number(counts.property_types_count),
-      propertyLocations: Number(counts.property_locations_count),
       properties: Number(counts.properties_count)
     }
   };

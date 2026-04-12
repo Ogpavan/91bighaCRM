@@ -94,12 +94,12 @@ export function PropertyUploadForm({ propertyTypes }: PropertyUploadFormProps) {
               </div>
               <div className="col-md-4">
                 <label className="form-label">Property Type</label>
-                <select name="propertyTypeId" className="form-select" required defaultValue="">
+                <select name="propertyType" className="form-select" required defaultValue="">
                   <option value="" disabled>
                     Select type
                   </option>
                   {propertyTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
+                    <option key={type.slug} value={type.name}>
                       {type.name}
                     </option>
                   ))}
@@ -252,8 +252,8 @@ export function PropertyUploadForm({ propertyTypes }: PropertyUploadFormProps) {
               </div>
               <div className="col-12">
                 <p className="small text-muted mb-0">
-                  The form writes to `property_locations`, `properties`, `property_pricing`, `property_specs`, and
-                  optional `property_media`.
+                  The form writes directly to the flattened `properties` table, including location, pricing, specs,
+                  and media fields.
                 </p>
               </div>
               {submitState.success ? (

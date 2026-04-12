@@ -286,12 +286,11 @@ export async function getAgentPerformanceReport(filters: ReportFilters) {
           count(l.id)::text as total_leads_assigned,
           '0'::text as site_visits_done,
           count(*) filter (where st.slug = 'booking-confirmed')::text as bookings_closed,
-          coalesce(sum(case when st.slug = 'booking-confirmed' then coalesce(pp.price_amount, pp.rent_amount, 0) else 0 end), 0)::text as revenue_generated
+          coalesce(sum(case when st.slug = 'booking-confirmed' then coalesce(p.price_amount, p.rent_amount, 0) else 0 end), 0)::text as revenue_generated
         from users u
         left join crm_leads l on coalesce(l.telecaller_id, l.assigned_to) = u.id and l.is_deleted = false${leadFilters.length ? ` and ${leadFilters.join(" and ")}` : ""}
         left join crm_lead_statuses st on st.id = l.status_id
         left join properties p on p.id = l.project_id
-        left join property_pricing pp on pp.property_id = p.id and pp.effective_to is null
         group by u.id, u.name
         having count(l.id) > 0
         order by count(l.id) desc, u.name asc
@@ -344,11 +343,10 @@ export async function getProjectPerformanceReport(filters: ReportFilters) {
           count(l.id)::text as total_leads,
           '0'::text as site_visits,
           count(*) filter (where st.slug = 'booking-confirmed')::text as bookings,
-          coalesce(sum(case when st.slug = 'booking-confirmed' then coalesce(pp.price_amount, pp.rent_amount, 0) else 0 end), 0)::text as revenue
+          coalesce(sum(case when st.slug = 'booking-confirmed' then coalesce(p.price_amount, p.rent_amount, 0) else 0 end), 0)::text as revenue
         from properties p
         left join crm_leads l on l.project_id = p.id and l.is_deleted = false${leadFilters.length ? ` and ${leadFilters.join(" and ")}` : ""}
         left join crm_lead_statuses st on st.id = l.status_id
-        left join property_pricing pp on pp.property_id = p.id and pp.effective_to is null
         where p.deleted_at is null
         group by p.id, p.title
         having count(l.id) > 0
@@ -401,22 +399,20 @@ export async function getSalesSummaryReport(filters: ReportFilters) {
       ),
       client.query<RevenueRow>(
         `
-          select coalesce(sum(coalesce(pp.price_amount, pp.rent_amount, 0)), 0)::text as total
+          select coalesce(sum(coalesce(p.price_amount, p.rent_amount, 0)), 0)::text as total
           from crm_leads l
           join crm_lead_statuses st on st.id = l.status_id
           left join properties p on p.id = l.project_id
-          left join property_pricing pp on pp.property_id = p.id and pp.effective_to is null
           where ${leadWhere} and st.slug = 'booking-confirmed'
         `,
         params
       ),
       client.query<RevenueRow>(
         `
-          select coalesce(sum(coalesce(pp.price_amount, pp.rent_amount, 0)), 0)::text as total
+          select coalesce(sum(coalesce(p.price_amount, p.rent_amount, 0)), 0)::text as total
           from crm_leads l
           join crm_lead_statuses st on st.id = l.status_id
           left join properties p on p.id = l.project_id
-          left join property_pricing pp on pp.property_id = p.id and pp.effective_to is null
           where ${leadWhere} and st.slug = 'negotiation'
         `,
         params
@@ -425,12 +421,11 @@ export async function getSalesSummaryReport(filters: ReportFilters) {
         `
           select
             to_char(date_trunc('month', l.created_at), 'YYYY-MM') as month,
-            coalesce(sum(coalesce(pp.price_amount, pp.rent_amount, 0)), 0)::text as revenue,
+            coalesce(sum(coalesce(p.price_amount, p.rent_amount, 0)), 0)::text as revenue,
             count(*)::text as bookings
           from crm_leads l
           join crm_lead_statuses st on st.id = l.status_id
           left join properties p on p.id = l.project_id
-          left join property_pricing pp on pp.property_id = p.id and pp.effective_to is null
           where ${leadWhere} and st.slug = 'booking-confirmed'
           group by date_trunc('month', l.created_at)
           order by date_trunc('month', l.created_at) asc

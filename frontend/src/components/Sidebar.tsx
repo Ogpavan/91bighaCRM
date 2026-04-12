@@ -83,20 +83,23 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }: Sideba
                 aria-label={appName}
                 className={cn(
                   "font-semibold tracking-[0.08em] text-[var(--brand-primary)]",
-                  collapsed ? "flex h-8 w-8 items-center justify-center text-[10px] uppercase" : "flex items-center gap-2 px-2 py-1.5 text-sm"
+                  collapsed ? "flex h-12 w-12 items-center justify-center text-[10px] uppercase" : "flex items-center gap-2 px-2 py-1.5 text-sm"
                 )}
               >
                 {collapsed ? (
                   logoUrl ? (
-                    <img src={logoUrl} alt={appName} className="h-6 w-6 object-contain" />
+                    <img src={logoUrl} alt={appName} className="h-10 w-auto max-w-10 object-contain" />
                   ) : (
                     appName.slice(0, 2).toUpperCase()
                   )
                 ) : (
-                  <>
-                    {logoUrl ? <img src={logoUrl} alt={appName} className="h-7 w-7 object-contain" /> : null}
-                    <span className="truncate">{appName}</span>
-                  </>
+                  logoUrl ? (
+                    <img src={logoUrl} alt={appName} className="h-10 w-auto max-w-[140px] object-contain" />
+                  ) : (
+                    <span className="flex h-12 w-12 items-center justify-center rounded-sm bg-[var(--brand-soft)] text-[10px] uppercase">
+                      {appName.slice(0, 2).toUpperCase()}
+                    </span>
+                  )
                 )}
               </div>
             </div>

@@ -41,6 +41,18 @@ function WhatsAppLogo() {
   return <img src="/assets/img/icons/whatsapp-logo.png" alt="WhatsApp" className="header-whatsapp-logo" />;
 }
 
+function BrandLogo() {
+  return (
+    <span className="site-brand" aria-label="91bigha">
+      <img
+        src="/uploads/branding/landinglogo.png"
+        alt="91bigha"
+        className="site-brand-logo"
+      />
+    </span>
+  );
+}
+
 function TextLogo({ dark = false }: { dark?: boolean }) {
   return (
     <span className={`text-logo${dark ? " text-logo-dark-theme" : ""}`} aria-label="91bigha">
@@ -62,10 +74,10 @@ export function SiteHeader() {
         <nav className="navbar navbar-expand-lg header-nav">
           <div className="navbar-header">
             <Link href="/" className="navbar-brand logo text-logo-link">
-              <TextLogo />
+              <BrandLogo />
             </Link>
             <Link href="/" className="navbar-brand logo-dark text-logo-link">
-              <TextLogo dark />
+              <BrandLogo />
             </Link>
             <a id="mobile_btn" href="javascript:void(0);">
               <i className="material-icons-outlined">menu</i>
@@ -75,10 +87,10 @@ export function SiteHeader() {
           <div className="main-menu-wrapper">
             <div className="menu-header">
               <Link href="/" className="menu-logo text-logo-link">
-                <TextLogo />
+                <BrandLogo />
               </Link>
               <Link href="/" className="menu-logo menu-logo-dark text-logo-link">
-                <TextLogo dark />
+                <BrandLogo />
               </Link>
               <a id="menu_close" className="menu-close" href="javascript:void(0);">
                 <i className="material-icons-outlined">close</i>

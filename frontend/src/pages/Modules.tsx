@@ -352,10 +352,6 @@ export default function ModulesPage() {
               <Button className="h-8 px-3 text-xs" onClick={() => setShowCreateModal(true)}>
                 Create Role
               </Button>
-            ) : activeTab === "property-types" ? (
-              <Button className="h-8 px-3 text-xs" onClick={() => setShowCreatePropertyTypeModal(true)}>
-                Create Property Type
-              </Button>
             ) : null}
           </div>
         </CardHeader>
@@ -443,6 +439,9 @@ export default function ModulesPage() {
 
           {activeTab === "property-types" ? (
             <div className="space-y-3">
+              <div className="rounded-sm border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+                Property types are hardcoded across the CRM and are no longer editable from this module.
+              </div>
               {propertyTypesLoading ? <p className="text-xs text-gray-500">Loading property types...</p> : null}
               {!propertyTypesLoading ? (
                 <div className="overflow-x-auto">
@@ -463,27 +462,7 @@ export default function ModulesPage() {
                           </td>
                           <td className="px-3 py-2 text-gray-600">{item.slug}</td>
                           <td className="px-3 py-2 text-gray-600">{Number(item.property_count ?? 0)}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                className="h-7 text-[11px]"
-                                onClick={() => {
-                                  setEditingPropertyType(item);
-                                  setEditingPropertyTypeName(item.name);
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                className="h-7 text-[11px] text-red-600 hover:bg-gray-100"
-                                onClick={() => setDeletingPropertyType(item)}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </td>
+                          <td className="px-3 py-2 text-gray-500">Fixed</td>
                         </tr>
                       ))}
                     </tbody>
