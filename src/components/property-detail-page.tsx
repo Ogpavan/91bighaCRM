@@ -113,7 +113,7 @@ export function PropertyDetailPage({ property, backHref, backLabel }: PropertyDe
     asField("Maintenance", property.maintenanceAmount ? `${formatInr(property.maintenanceAmount)} / month` : null)
   ].filter((value): value is DetailField => Boolean(value));
 
-  const topFacts = [
+  const topFacts = ([
     property.bedrooms !== null && property.bedrooms !== undefined
       ? { label: "Beds", value: property.bedrooms, icon: "bed" }
       : null,
@@ -124,7 +124,7 @@ export function PropertyDetailPage({ property, backHref, backLabel }: PropertyDe
     property.parkingCount !== null && property.parkingCount !== undefined
       ? { label: "Parking", value: property.parkingCount, icon: "directions_car" }
       : null
-  ].filter((value): value is TopFact => Boolean(value));
+  ] as Array<TopFact | null>).filter((value): value is TopFact => Boolean(value));
 
   return (
     <main className="section-padding bg-light property-detail-page">
