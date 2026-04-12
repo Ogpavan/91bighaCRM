@@ -148,7 +148,10 @@ export async function getProjects(): Promise<{ items: ProjectListing[]; property
   const data = await apiRequest<ProjectsResponse>("/api/properties");
   return {
     items: data.items,
-    propertyTypes: getCrmPropertyTypeItems()
+    propertyTypes: getCrmPropertyTypeItems().map((item, index) => ({
+      ...item,
+      id: Number.parseInt(item.id, 10) || index + 1
+    }))
   };
 }
 
