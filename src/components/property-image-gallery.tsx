@@ -43,4 +43,3 @@ export function PropertyImageGallery({ title, images }: PropertyImageGalleryProp
     </>
   );
 }
-

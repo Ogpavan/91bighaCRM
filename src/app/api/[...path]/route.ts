@@ -14,6 +14,7 @@ import {
   addLeadVisit,
   createLead,
   deleteLead,
+  ensureCrmLeadsSchema,
   getLeadById,
   getLeadsMetadata,
   listLeadActivities,
@@ -111,6 +112,50 @@ function toOptionalNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function parseAreaValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return { amount: null as number | null, unit: null as string | null };
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return { amount: value, unit: null };
+  }
+
+  if (typeof value !== "string") {
+    return { amount: null as number | null, unit: null as string | null };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { amount: null as number | null, unit: null as string | null };
+  }
+
+  const numeric = Number(trimmed.replace(/,/g, ""));
+  if (Number.isFinite(numeric)) {
+    return { amount: numeric, unit: null };
+  }
+
+  const match = trimmed.match(/([\d,.]+)\s*(sq\.?\s*ft|sqft|sq\.?\s*m|sqm|sq\.?\s*yd|sqyd|sq\.?\s*yards?)/i);
+  if (!match) {
+    return { amount: null as number | null, unit: null as string | null };
+  }
+
+  const amount = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(amount)) {
+    return { amount: null as number | null, unit: null as string | null };
+  }
+
+  const unitRaw = match[2].toLowerCase().replace(/\s+/g, "");
+  let unit = "sqft";
+  if (unitRaw.includes("sqyd") || unitRaw.includes("yard")) {
+    unit = "sqyd";
+  } else if (unitRaw.includes("sqm") || unitRaw.includes("sq.m")) {
+    unit = "sqm";
+  }
+
+  return { amount, unit };
+}
+
 function toOptionalBoolean(value: unknown) {
   if (typeof value === "boolean") {
     return value;
@@ -154,6 +199,95 @@ function toStringList(value: unknown) {
   return [];
 }
 
+function toImageSourceList(value: unknown) {
+  const values = Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
+  const urls: string[] = [];
+
+  for (const entry of values) {
+    if (typeof entry !== "string") {
+      continue;
+    }
+
+    const trimmed = entry.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const parts = trimmed
+      .split(/\r?\n|\|/g)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    for (const part of parts.length ? parts : [trimmed]) {
+      const matches = part.match(/https?:\/\/[^\s|]+/gi);
+      if (matches?.length) {
+        for (const match of matches) {
+          urls.push(match.trim());
+        }
+        continue;
+      }
+
+      const normalized = part.replace(/^['"]|['"]$/g, "");
+      if (normalized.startsWith("/uploads/")) {
+        urls.push(normalized);
+      } else if (normalized.startsWith("uploads/")) {
+        urls.push(`/${normalized}`);
+      }
+    }
+  }
+
+  return Array.from(new Set(urls));
+}
+
+function normalizeListingType(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  if (["buy", "sale", "sell", "resale", "for sale"].includes(normalized)) {
+    return "sale";
+  }
+  if (["rent", "lease", "for rent"].includes(normalized)) {
+    return "rent";
+  }
+  return null;
+}
+
+function isLikelyAreaValue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (/^\d+(\.\d+)?\s*(sq\.?\s*ft|sqft|sq\.?\s*yd|sqyd|sqm|sq\.?\s*m|acre)s?$/i.test(normalized)) {
+    return true;
+  }
+  return /^\d+(\.\d+)?$/.test(normalized);
+}
+
+function normalizeFacingValue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const valid = new Set([
+    "north",
+    "south",
+    "east",
+    "west",
+    "north east",
+    "north west",
+    "south east",
+    "south west",
+    "northeast",
+    "northwest",
+    "southeast",
+    "southwest"
+  ]);
+  return valid.has(normalized) ? value.trim() : null;
+}
+
 async function saveUploadedImage(file: File, folder = "properties") {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   if (!Object.hasOwn(uploadContentTypes, `.${ext}`)) {
@@ -165,6 +299,67 @@ async function saveUploadedImage(file: File, folder = "properties") {
   const targetPath = path.join(targetDir, filename);
   await fs.mkdir(targetDir, { recursive: true });
   await fs.writeFile(targetPath, Buffer.from(await file.arrayBuffer()));
+  return `/uploads/${folder}/${filename}`;
+}
+
+const uploadMimeToExt: Record<string, string> = {
+  "image/avif": ".avif",
+  "image/gif": ".gif",
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/svg+xml": ".svg",
+  "image/webp": ".webp"
+};
+
+function inferImageExtension(urlValue: string, mimeType: string | null) {
+  try {
+    const parsedUrl = new URL(urlValue);
+    const urlExt = path.extname(parsedUrl.pathname).toLowerCase();
+    if (Object.hasOwn(uploadContentTypes, urlExt)) {
+      return urlExt;
+    }
+  } catch {
+    // ignore invalid URL parsing and fallback to mime/default extension
+  }
+
+  if (mimeType) {
+    const normalizedType = mimeType.split(";")[0].trim().toLowerCase();
+    const ext = uploadMimeToExt[normalizedType];
+    if (ext) {
+      return ext;
+    }
+  }
+
+  return ".jpg";
+}
+
+async function saveRemoteImageUrl(remoteUrl: string, folder = "properties") {
+  const parsed = new URL(remoteUrl);
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error(`Unsupported image URL protocol: ${remoteUrl}`);
+  }
+
+  const response = await fetch(remoteUrl, { redirect: "follow" });
+  if (!response.ok) {
+    throw new Error(`Failed to download image (${response.status}) from ${remoteUrl}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length) {
+    throw new Error(`Downloaded image is empty: ${remoteUrl}`);
+  }
+
+  const ext = inferImageExtension(remoteUrl, response.headers.get("content-type"));
+  if (!Object.hasOwn(uploadContentTypes, ext)) {
+    throw new Error(`Unsupported downloaded image type for ${remoteUrl}`);
+  }
+
+  const filename = `${Date.now()}-${randomUUID()}${ext}`;
+  const targetDir = getUploadsSubpath(folder);
+  const targetPath = path.join(targetDir, filename);
+  await fs.mkdir(targetDir, { recursive: true });
+  await fs.writeFile(targetPath, buffer);
   return `/uploads/${folder}/${filename}`;
 }
 
@@ -1318,8 +1513,109 @@ async function handlePropertyTypes(request: Request, method: string, segments: s
     request
   );
 }
+
+function normalizeIndianPhone(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const digits = value.replace(/\D/g, "");
+  const candidate = digits.length === 10 ? digits : digits.slice(-10);
+  return /^[6-9]\d{9}$/.test(candidate) ? candidate : null;
+}
+
+async function getWebsiteLeadDefaults() {
+  await ensureCrmLeadsSchema();
+
+  return withDbClient(async (client) => {
+    const sourceResult = await client.query<{ id: string }>(
+      "select id::text as id from crm_lead_sources where slug = 'website' limit 1"
+    );
+    if (!sourceResult.rows.length) {
+      throw new Error("Website lead source is missing.");
+    }
+
+    const actorResult = await client.query<{ id: string }>(
+      `
+        select u.id::text as id
+        from users u
+        join roles r on r.id = u.role_id
+        where u.is_active = true
+        order by
+          case when r.slug = 'admin' then 0
+               when r.slug = 'sales-manager' then 1
+               else 2 end,
+          u.id asc
+        limit 1
+      `
+    );
+    if (!actorResult.rows.length) {
+      throw new Error("No active CRM user available to own website enquiries.");
+    }
+
+    return {
+      sourceId: Number(sourceResult.rows[0].id),
+      actorUserId: actorResult.rows[0].id
+    };
+  });
+}
+
+async function handlePublic(request: Request, method: string, segments: string[]) {
+  if (segments[2] !== "enquiries" || method !== "POST") {
+    return notFound(request);
+  }
+
+  const payload = await parseJson<{
+    fullName?: string;
+    phone?: string;
+    message?: string;
+    requirement?: string;
+    propertyTitle?: string;
+    propertyCode?: string;
+  }>(request);
+
+  const fullName = (payload.fullName || "").trim();
+  if (fullName.length < 2) {
+    return jsonResponse({ success: false, message: "Full name is required." }, 400, request);
+  }
+
+  const normalizedPhone = normalizeIndianPhone(payload.phone);
+  if (!normalizedPhone) {
+    return jsonResponse({ success: false, message: "Valid Indian mobile number is required." }, 400, request);
+  }
+
+  const { sourceId, actorUserId } = await getWebsiteLeadDefaults();
+  const details = [
+    "Website enquiry",
+    payload.requirement?.trim() ? `Requirement: ${payload.requirement.trim()}` : null,
+    payload.propertyTitle?.trim() ? `Property: ${payload.propertyTitle.trim()}` : null,
+    payload.propertyCode?.trim() ? `Property Code: ${payload.propertyCode.trim()}` : null,
+    payload.message?.trim() ? `Message: ${payload.message.trim()}` : null
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const lead = await createLead(
+    {
+      name: fullName,
+      date: new Date().toISOString(),
+      mobileNumber: normalizedPhone,
+      whatsappNumber: normalizedPhone,
+      sourceId,
+      remark: details
+    },
+    actorUserId
+  );
+
+  return jsonResponse({ success: true, leadId: lead.id }, 201, request);
+}
+
 function normalizeHeader(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .replace(/\uFEFF/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 async function handlePropertiesApi(request: Request, method: string, segments: string[]) {
@@ -1408,42 +1704,73 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
     const headers = rows.length ? Object.keys(rows[0]) : [];
 
     const aliases: Record<string, string[]> = {
-      title: ["title", "name", "property title"],
-      listingType: ["listing type", "listing_type", "listing"],
+      title: ["title", "name", "property title", "prop heading", "prop_heading", "heading"],
+      description: ["description", "desc"],
+      listingType: ["listing type", "listing_type", "listing", "listing type label", "preference"],
       propertyType: ["property type", "property_type", "property type id", "property_type_id"],
-      locality: ["locality", "area"],
+      locality: ["locality"],
+      locationLocality: ["location locality name", "location_locality_name"],
       country: ["country"],
       subLocality: ["sub locality", "sub_locality", "sublocality"],
-      city: ["city"],
+      city: ["city", "location city name", "location_city_name"],
       state: ["state"],
-      addressLine1: ["address", "address line1", "address1"],
+      availability: ["availability", "formatted availability", "formatted_availability"],
+      addressLine1: ["address", "address line1", "address1", "location address", "location_address"],
       addressLine2: ["address line2", "address2", "address_line2"],
       landmark: ["landmark"],
       pincode: ["pincode", "pin"],
       status: ["status"],
       possessionStatus: ["possession status", "possession_status"],
       facing: ["facing"],
-      latitude: ["latitude", "lat"],
-      longitude: ["longitude", "lng", "lon"],
+      latitude: ["latitude", "lat", "map latitude", "map_latitude"],
+      longitude: ["longitude", "lng", "lon", "map longitude", "map_longitude"],
       priceAmount: ["price", "price amount", "price_amount"],
       rentAmount: ["rent", "rent amount", "rent_amount"],
       securityDeposit: ["security deposit", "security_deposit"],
       maintenanceAmount: ["maintenance", "maintenance amount", "maintenance_amount"],
-      priceLabel: ["price label", "price_label"],
-      bedrooms: ["bedrooms", "beds"],
-      bathrooms: ["bathrooms", "baths"],
-      balconies: ["balconies"],
+      priceLabel: [
+        "price label",
+        "price_label",
+        "formatted price in words",
+        "formatted_price_in_words",
+        "formatted price"
+      ],
+      bedrooms: ["bedrooms", "beds", "bedroom num", "bedroom_num"],
+      bathrooms: ["bathrooms", "baths", "bathroom num", "bathroom_num"],
+      balconies: ["balconies", "balcony num", "balcony_num"],
       floorNumber: ["floor number", "floor_number"],
-      floorsTotal: ["floors total", "floors_total", "total floors", "total_floors"],
-      builtupArea: ["builtup area", "builtup_area"],
-      builtupAreaUnit: ["builtup area unit", "builtup_area_unit"],
+      floorsTotal: ["floors total", "floors_total", "total floors", "total_floors", "total floor", "total_floor"],
+      builtupArea: ["builtup area", "builtup_area", "super area", "super_area", "super sqft", "super_sqft"],
+      builtupAreaUnit: ["builtup area unit", "builtup_area_unit", "superarea unit", "superarea_unit"],
+      area: ["area"],
+      secondaryArea: ["secondary area", "secondary_area"],
       carpetArea: ["carpet area", "carpet_area"],
       plotArea: ["plot area", "plot_area"],
       parkingCount: ["parking", "parking count", "parking_count"],
-      furnishingStatus: ["furnishing status", "furnishing_status"],
-      ageOfProperty: ["age of property", "age_of_property"],
+      furnishingStatus: ["furnishing status", "furnishing_status", "furnish"],
+      ageOfProperty: ["age of property", "age_of_property", "age"],
       features: ["features", "amenities", "amenity"],
-      coverImageUrl: ["cover image", "cover image url", "cover_image_url"],
+      coverImageUrl: [
+        "cover image",
+        "cover image url",
+        "cover_image_url",
+        "photo url",
+        "photo_url",
+        "medium photo url",
+        "medium_photo_url"
+      ],
+      imageUrls: [
+        "image urls",
+        "image_urls",
+        "images",
+        "gallery",
+        "gallery images",
+        "property images",
+        "property_images",
+        "prop heading",
+        "prop_heading",
+        "price"
+      ],
       isFeatured: ["is featured", "is_featured", "featured"],
       isVerified: ["is verified", "is_verified", "verified"]
     };
@@ -1452,7 +1779,7 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
     headers.forEach((header) => {
       const normalized = normalizeHeader(header);
       for (const [field, options] of Object.entries(aliases)) {
-        if (options.includes(normalized)) {
+        if (options.includes(normalized) && !headerMap.has(field)) {
           headerMap.set(field, header);
           break;
         }
@@ -1469,6 +1796,7 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
 
     const imported: Array<{ row: number; propertyCode: string; slug: string }> = [];
     const errors: Array<{ row: number; error: string }> = [];
+    const downloadedImageCache = new Map<string, string>();
 
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
@@ -1480,13 +1808,15 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
           return header ? row[header] : undefined;
         };
 
-        const title = String(getValue("title") ?? "").trim();
-        const listingType = String(getValue("listingType") ?? "").trim();
+        const titleRaw = String(getValue("title") ?? "").trim();
+        const listingTypeRaw = String(getValue("listingType") ?? "").trim();
         const propertyTypeRaw = getValue("propertyType");
-        const locality = String(getValue("locality") ?? "").trim();
+        const rawLocality = String(getValue("locality") ?? "").trim();
+        const fallbackLocality = String(getValue("locationLocality") ?? "").trim();
+        const locality = isLikelyAreaValue(rawLocality) ? fallbackLocality : rawLocality || fallbackLocality;
 
-        if (!title || !listingType || !locality || !propertyTypeRaw) {
-          throw new Error("Missing required fields (title, listingType, propertyType, locality).");
+        if (!locality || !propertyTypeRaw) {
+          throw new Error("Missing required fields (propertyType, locality).");
         }
 
         const normalizedPropertyType = normalizeHeader(String(propertyTypeRaw));
@@ -1499,8 +1829,42 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
           throw new Error("Invalid property type.");
         }
 
+        const listingType =
+          normalizeListingType(listingTypeRaw) ||
+          normalizeListingType(String(getValue("availability") ?? "")) ||
+          "sale";
+
+        const fallbackTitle = `${propertyType} in ${locality}${String(getValue("city") ?? "").trim() ? `, ${String(getValue("city") ?? "").trim()}` : ""}`;
+        const title = titleRaw && !/https?:\/\//i.test(titleRaw) ? titleRaw : fallbackTitle;
+
+        const imageSources = Array.from(
+          new Set([
+            ...toImageSourceList(getValue("coverImageUrl")),
+            ...toImageSourceList(getValue("imageUrls"))
+          ])
+        );
+
+        const resolvedImageUrls: string[] = [];
+        for (const imageSource of imageSources) {
+          if (imageSource.startsWith("/uploads/")) {
+            resolvedImageUrls.push(imageSource);
+            continue;
+          }
+
+          const cached = downloadedImageCache.get(imageSource);
+          if (cached) {
+            resolvedImageUrls.push(cached);
+            continue;
+          }
+
+          const downloadedImage = await saveRemoteImageUrl(imageSource);
+          downloadedImageCache.set(imageSource, downloadedImage);
+          resolvedImageUrls.push(downloadedImage);
+        }
+
         const payload = {
           title,
+          description: String(getValue("description") ?? "").trim() || undefined,
           listingType,
           propertyType,
           locality,
@@ -1514,7 +1878,7 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
           pincode: String(getValue("pincode") ?? "").trim() || undefined,
           status: String(getValue("status") ?? "").trim() || undefined,
           possessionStatus: String(getValue("possessionStatus") ?? "").trim() || undefined,
-          facing: String(getValue("facing") ?? "").trim() || undefined,
+          facing: normalizeFacingValue(String(getValue("facing") ?? "")) || undefined,
           latitude: toOptionalNumber(getValue("latitude")) ?? undefined,
           longitude: toOptionalNumber(getValue("longitude")) ?? undefined,
           priceAmount: toOptionalNumber(getValue("priceAmount")) ?? undefined,
@@ -1527,14 +1891,23 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
           balconies: toOptionalNumber(getValue("balconies")) ?? undefined,
           floorNumber: toOptionalNumber(getValue("floorNumber")) ?? undefined,
           floorsTotal: toOptionalNumber(getValue("floorsTotal")) ?? undefined,
-          builtupArea: toOptionalNumber(getValue("builtupArea")) ?? undefined,
-          builtupAreaUnit: String(getValue("builtupAreaUnit") ?? "").trim() || undefined,
+          builtupArea:
+            toOptionalNumber(getValue("builtupArea")) ??
+            parseAreaValue(getValue("area")).amount ??
+            parseAreaValue(getValue("secondaryArea")).amount ??
+            undefined,
+          builtupAreaUnit:
+            String(getValue("builtupAreaUnit") ?? "").trim() ||
+            parseAreaValue(getValue("area")).unit ||
+            parseAreaValue(getValue("secondaryArea")).unit ||
+            undefined,
           carpetArea: toOptionalNumber(getValue("carpetArea")) ?? undefined,
           plotArea: toOptionalNumber(getValue("plotArea")) ?? undefined,
           parkingCount: toOptionalNumber(getValue("parkingCount")) ?? undefined,
           furnishingStatus: String(getValue("furnishingStatus") ?? "").trim() || undefined,
           ageOfProperty: toOptionalNumber(getValue("ageOfProperty")) ?? undefined,
-          coverImageUrl: String(getValue("coverImageUrl") ?? "").trim() || undefined,
+          coverImageUrl: resolvedImageUrls[0] || undefined,
+          imageUrls: resolvedImageUrls.length ? resolvedImageUrls : undefined,
           features: toStringList(getValue("features")) || undefined,
           isFeatured: toOptionalBoolean(getValue("isFeatured")) ?? undefined,
           isVerified: toOptionalBoolean(getValue("isVerified")) ?? undefined
@@ -1601,6 +1974,8 @@ async function handleV1(request: Request, method: string, segments: string[]) {
       return handleTeams(request, method, segments);
     case "property-types":
       return handlePropertyTypes(request, method, segments);
+    case "public":
+      return handlePublic(request, method, segments);
     default:
       return notFound(request);
   }

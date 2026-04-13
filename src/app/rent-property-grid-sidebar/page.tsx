@@ -11,6 +11,7 @@ type RentPropertyGridSidebarPageProps = {
     bathrooms?: string;
     minArea?: string;
     maxArea?: string;
+    page?: string;
   }>;
 };
 
@@ -32,6 +33,11 @@ function parseInteger(value?: string) {
   const normalized = value.replace(/[^0-9]/g, "");
   const amount = Number.parseInt(normalized, 10);
   return Number.isFinite(amount) ? amount : null;
+}
+
+function parsePage(value?: string) {
+  const parsed = parseInteger(value);
+  return parsed && parsed > 0 ? parsed : 1;
 }
 
 function normalizePriceRange(minPrice: number | null, maxPrice: number | null) {
@@ -67,7 +73,9 @@ export const dynamic = "force-dynamic";
 export default async function RentPropertyGridSidebarPage({
   searchParams
 }: RentPropertyGridSidebarPageProps) {
+  const pageSize = 20;
   const params = await searchParams;
+  const page = parsePage(params.page);
   const normalizedPrices = normalizePriceRange(
     parseAmount(params.minPrice),
     parseAmount(params.maxPrice)
@@ -87,8 +95,10 @@ export default async function RentPropertyGridSidebarPage({
     maxArea: normalizedArea.maxValue
   };
 
-  const properties = await searchProperties({
+  const result = await searchProperties({
     listingType: "rent",
+    page,
+    limit: pageSize,
     ...filters
   });
   const propertyTypeOptions = await getPropertyTypeOptions();
@@ -96,9 +106,15 @@ export default async function RentPropertyGridSidebarPage({
   return (
     <PropertySearchResultsPage
       listingType="rent"
-      properties={properties}
+      properties={result.items}
       propertyTypeOptions={propertyTypeOptions}
       filters={filters}
+      pagination={{
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total,
+        totalPages: result.totalPages
+      }}
     />
   );
 }

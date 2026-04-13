@@ -32,20 +32,58 @@ export function ContactInquiryForm({
   compact = false
 }: ContactInquiryFormProps) {
   const [form, setForm] = useState<FormState>(() => getInitialState());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
+    setSubmitError(null);
+    setSubmitSuccess(null);
 
     const normalizedPhone = form.phone.replace(/\D/g, "");
     const indianPhone = normalizedPhone.length === 10 ? normalizedPhone : normalizedPhone.slice(-10);
     const isValidIndianPhone = /^[6-9]\d{9}$/.test(indianPhone);
 
     if (!isValidIndianPhone) {
+      setSubmitError("Enter a valid Indian mobile number.");
       return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/v1/public/enquiries", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          fullName: form.fullName,
+          phone: indianPhone,
+          message: form.message,
+          requirement: defaultRequirement || "General Enquiry",
+          propertyTitle,
+          propertyCode
+        })
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(body?.message || "Failed to save enquiry.");
+      }
+      setSubmitSuccess("We will get back to you soon.");
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to submit enquiry.");
+      return;
+    } finally {
+      setIsSubmitting(false);
     }
 
     const details = [
@@ -111,13 +149,23 @@ export function ContactInquiryForm({
           />
         </div>
         <div className="col-12 enquiry-form-actions d-flex gap-3 pt-2">
-          <button type="submit" className="btn btn-primary btn-lg px-4">
-            {submitLabel}
+          <button type="submit" className="btn btn-primary btn-lg px-4" disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : submitLabel}
           </button>
           <a href="tel:+917302166711" className="btn btn-dark btn-lg px-4">
             Call Now
           </a>
         </div>
+        {submitSuccess ? (
+          <div className="col-12">
+            <div className="alert alert-success mb-0">{submitSuccess}</div>
+          </div>
+        ) : null}
+        {submitError ? (
+          <div className="col-12">
+            <div className="alert alert-danger mb-0">{submitError}</div>
+          </div>
+        ) : null}
       </div>
     </form>
   );

@@ -72,7 +72,16 @@ export type SearchPropertiesInput = {
   bathrooms?: number | null;
   minArea?: number | null;
   maxArea?: number | null;
+  page?: number;
   limit?: number;
+};
+
+export type SearchPropertiesResult = {
+  items: HomepageProperty[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 };
 
 export type CreatePropertyInput = {
@@ -361,8 +370,11 @@ export async function searchProperties({
   bathrooms,
   minArea,
   maxArea,
-  limit = 24
-}: SearchPropertiesInput) {
+  page = 1,
+  limit = 20
+}: SearchPropertiesInput): Promise<SearchPropertiesResult> {
+  const pageSize = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 20;
+  const requestedPage = Number.isFinite(page) ? Math.max(Math.trunc(page), 1) : 1;
   const db = await getDb();
   const filters: string[] = [
     "p.deleted_at is null",
@@ -420,7 +432,20 @@ export async function searchProperties({
     filters.push(`coalesce(p.builtup_area, 0) <= $${params.length}`);
   }
 
-  params.push(limit);
+  const totalResult = await db.query<{ total: string }>(
+    `
+      select count(p.id)::text as total
+      from properties p
+      where ${filters.join("\n        and ")}
+    `,
+    params
+  );
+  const total = Number(totalResult.rows[0]?.total ?? "0");
+  const totalPages = total > 0 ? Math.ceil(total / pageSize) : 1;
+  const pageNumber = Math.min(requestedPage, totalPages);
+  const offset = (pageNumber - 1) * pageSize;
+
+  params.push(pageSize, offset);
 
   const result = await db.query<RawHomepageProperty>(
     `
@@ -451,12 +476,19 @@ export async function searchProperties({
       from properties p
       where ${filters.join("\n        and ")}
       order by p.is_featured desc, coalesce(p.published_at, p.created_at) desc
-      limit $${params.length}
+      limit $${params.length - 1}
+      offset $${params.length}
     `,
     params
   );
 
-  return result.rows.map(mapHomepageProperty);
+  return {
+    items: result.rows.map(mapHomepageProperty),
+    page: pageNumber,
+    pageSize,
+    total,
+    totalPages
+  };
 }
 
 export async function listPropertyTypeCounts(limit = 6) {

@@ -21,6 +21,12 @@ type PropertySearchResultsPageProps = {
     minArea?: number | null;
     maxArea?: number | null;
   };
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 };
 
 function formatMoney(value: number | null | undefined) {
@@ -113,27 +119,80 @@ export function PropertySearchResultsPage({
   listingType,
   properties,
   propertyTypeOptions,
-  filters
+  filters,
+  pagination
 }: PropertySearchResultsPageProps) {
   const pageTitle = listingType === "rent" ? "Rent Search Results" : "Buy Search Results";
   const emptyTitle = listingType === "rent" ? "No rental properties matched your search." : "No sale properties matched your search.";
   const gridHref = listingType === "rent" ? "/rent-property-grid-sidebar" : "/buy-property-grid-sidebar";
-  const resolvedPropertyTypeOptions = propertyTypeOptions.length
-    ? propertyTypeOptions
-    : [
-        { id: 1, name: "Apartment", slug: "apartment" },
-        { id: 2, name: "Villa", slug: "villa" },
-        { id: 3, name: "Independent House", slug: "independent-house" },
-        { id: 4, name: "Plot", slug: "plot" }
-      ];
-  const localityOptions = [
-    "Civil Lines",
-    "DD Puram",
-    "Rajendra Nagar",
-    "Izatnagar",
-    "Model Town",
-    "Bhojipura"
-  ];
+  const propertyTypesFromListings = Array.from(
+    new Set(
+      properties
+        .map((property) => property.propertyType?.trim())
+        .filter((value): value is string => Boolean(value))
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  const resolvedPropertyTypeOptions = (propertyTypesFromListings.length
+    ? propertyTypesFromListings
+    : propertyTypeOptions.map((option) => option.name)
+  ).map((name, index) => ({
+    id: index + 1,
+    name,
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+  }));
+
+  if (
+    filters.propertyType &&
+    !resolvedPropertyTypeOptions.some((option) => option.name === filters.propertyType)
+  ) {
+    resolvedPropertyTypeOptions.unshift({
+      id: 0,
+      name: filters.propertyType,
+      slug: filters.propertyType
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+    });
+  }
+
+  const localityOptions = Array.from(
+    new Set(
+      properties
+        .map((property) => property.locality?.trim() || property.city?.trim() || "")
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  if (filters.location && !localityOptions.some((option) => option === filters.location)) {
+    localityOptions.unshift(filters.location);
+  }
+
+  const bedroomsOptions = Array.from(
+    new Set(
+      properties
+        .map((property) => property.bedrooms)
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0)
+    )
+  ).sort((a, b) => a - b);
+
+  const bathroomsOptions = Array.from(
+    new Set(
+      properties
+        .map((property) => property.bathrooms)
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0)
+    )
+  ).sort((a, b) => a - b);
+
+  if (typeof filters.bedrooms === "number" && !bedroomsOptions.includes(filters.bedrooms)) {
+    bedroomsOptions.push(filters.bedrooms);
+    bedroomsOptions.sort((a, b) => a - b);
+  }
+
+  if (typeof filters.bathrooms === "number" && !bathroomsOptions.includes(filters.bathrooms)) {
+    bathroomsOptions.push(filters.bathrooms);
+    bathroomsOptions.sort((a, b) => a - b);
+  }
   const chips = [
     filters.propertyType ? `Type: ${filters.propertyType}` : null,
     filters.location ? `Location: ${filters.location}` : null,
@@ -144,6 +203,45 @@ export function PropertySearchResultsPage({
     filters.minArea ? `Min Area: ${filters.minArea} sqft` : null,
     filters.maxArea ? `Max Area: ${filters.maxArea} sqft` : null
   ].filter(Boolean) as string[];
+  const startItem = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const endItem = pagination.total === 0 ? 0 : Math.min(pagination.page * pagination.pageSize, pagination.total);
+
+  const buildPageHref = (pageNumber: number) => {
+    const params = new URLSearchParams();
+
+    if (filters.propertyType) {
+      params.set("propertyType", filters.propertyType);
+    }
+    if (filters.location) {
+      params.set("location", filters.location);
+    }
+    if (typeof filters.minPrice === "number") {
+      params.set("minPrice", String(filters.minPrice));
+    }
+    if (typeof filters.maxPrice === "number") {
+      params.set("maxPrice", String(filters.maxPrice));
+    }
+    if (typeof filters.bedrooms === "number") {
+      params.set("bedrooms", String(filters.bedrooms));
+    }
+    if (typeof filters.bathrooms === "number") {
+      params.set("bathrooms", String(filters.bathrooms));
+    }
+    if (typeof filters.minArea === "number") {
+      params.set("minArea", String(filters.minArea));
+    }
+    if (typeof filters.maxArea === "number") {
+      params.set("maxArea", String(filters.maxArea));
+    }
+
+    params.set("page", String(pageNumber));
+    return `${gridHref}?${params.toString()}`;
+  };
+
+  const pageWindow = 2;
+  const startPage = Math.max(1, pagination.page - pageWindow);
+  const endPage = Math.min(pagination.totalPages, pagination.page + pageWindow);
+  const pageNumbers = Array.from({ length: endPage - startPage + 1 }, (_, index) => startPage + index);
 
   return (
     <main className="section-padding bg-light min-vh-100">
@@ -210,21 +308,22 @@ export function PropertySearchResultsPage({
                         <label className="form-label mb-1">No of Bedrooms</label>
                         <select name="bedrooms" className="form-select" defaultValue={String(filters.bedrooms ?? "")}>
                           <option value="">Any</option>
-                          <option value="1">1+</option>
-                          <option value="2">2+</option>
-                          <option value="3">3+</option>
-                          <option value="4">4+</option>
-                          <option value="5">5+</option>
+                          {(bedroomsOptions.length ? bedroomsOptions : [1, 2, 3, 4, 5]).map((value) => (
+                            <option key={value} value={value}>
+                              {value}+
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div>
                         <label className="form-label mb-1">No of Bathrooms</label>
                         <select name="bathrooms" className="form-select" defaultValue={String(filters.bathrooms ?? "")}>
                           <option value="">Any</option>
-                          <option value="1">1+</option>
-                          <option value="2">2+</option>
-                          <option value="3">3+</option>
-                          <option value="4">4+</option>
+                          {(bathroomsOptions.length ? bathroomsOptions : [1, 2, 3, 4]).map((value) => (
+                            <option key={value} value={value}>
+                              {value}+
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
@@ -345,6 +444,42 @@ export function PropertySearchResultsPage({
                   </div>
                 </div>
               )}
+            </div>
+            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
+              <p className="mb-0 text-body fs-14">
+                Showing {startItem}-{endItem} of {pagination.total} listings
+              </p>
+              <nav aria-label="Property results pages">
+                <ul className="pagination mb-0">
+                  <li className={`page-item ${pagination.page <= 1 ? "disabled" : ""}`}>
+                    <Link
+                      className="page-link"
+                      href={buildPageHref(Math.max(1, pagination.page - 1))}
+                      aria-disabled={pagination.page <= 1}
+                      tabIndex={pagination.page <= 1 ? -1 : undefined}
+                    >
+                      Prev
+                    </Link>
+                  </li>
+                  {(pageNumbers.length ? pageNumbers : [1]).map((pageNumber) => (
+                    <li key={pageNumber} className={`page-item ${pageNumber === pagination.page ? "active" : ""}`}>
+                      <Link className="page-link" href={buildPageHref(pageNumber)}>
+                        {pageNumber}
+                      </Link>
+                    </li>
+                  ))}
+                  <li className={`page-item ${pagination.page >= pagination.totalPages ? "disabled" : ""}`}>
+                    <Link
+                      className="page-link"
+                      href={buildPageHref(Math.min(pagination.totalPages, pagination.page + 1))}
+                      aria-disabled={pagination.page >= pagination.totalPages}
+                      tabIndex={pagination.page >= pagination.totalPages ? -1 : undefined}
+                    >
+                      Next
+                    </Link>
+                  </li>
+                </ul>
+              </nav>
             </div>
           </div>
         </div>
