@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import Pagination from "@/components/Pagination";
 import {
   createProject,
   getProjects,
@@ -163,6 +164,9 @@ export default function ProjectsPage() {
   const [panelMode, setPanelMode] = useState<"create" | "import">("create");
   const [items, setItems] = useState<ProjectListing[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<ProjectPropertyType[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [galleryImageFiles, setGalleryImageFiles] = useState<File[]>([]);
@@ -175,13 +179,16 @@ export default function ProjectsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadProjects = async () => {
+  const loadProjects = async (nextPage = page, nextPageSize = pageSize) => {
     setLoading(true);
     setError("");
     try {
-      const response = await getProjects();
+      const response = await getProjects({ page: nextPage, limit: nextPageSize });
       setItems(response.items);
       setPropertyTypes(response.propertyTypes);
+      setPage(response.pagination.page);
+      setPageSize(response.pagination.limit);
+      setTotalPages(Math.max(response.pagination.totalPages, 1));
       setForm((prev) => ({
         ...prev,
         propertyType: prev.propertyType || response.propertyTypes[0]?.name || ""
@@ -194,8 +201,8 @@ export default function ProjectsPage() {
   };
 
   useEffect(() => {
-    void loadProjects();
-  }, []);
+    void loadProjects(page, pageSize);
+  }, [page, pageSize]);
 
   const setText = (key: keyof FormState, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [key]: value } as FormState));
@@ -277,7 +284,7 @@ export default function ProjectsPage() {
       setSuccess(`Property saved as ${created?.propertyCode || "new listing"}. Active sale/rent listings appear on the homepage automatically.`);
       resetCreateForm();
       setPanelOpen(false);
-      await loadProjects();
+      await loadProjects(page, pageSize);
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Failed to save property.");
     } finally {
@@ -381,7 +388,7 @@ export default function ProjectsPage() {
       setSuccess(
         `Imported ${result.importedCount} properties.${skippedCount ? ` ${skippedCount} duplicates skipped.` : ""}${result.failedCount ? ` ${result.failedCount} rows failed.` : ""}`
       );
-      await loadProjects();
+      await loadProjects(page, pageSize);
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : "Failed to import properties.");
     } finally {
@@ -439,75 +446,87 @@ export default function ProjectsPage() {
             </div>
           ) : null}
           {!loading ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Property</TableHead>
-                    <TableHead>Listing</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Specs</TableHead>
-                    <TableHead>Pricing</TableHead>
-                    <TableHead>Visibility</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div>
-                          <Link
-                            to={`/properties/${item.id}/edit`}
-                            className="font-medium text-blue-700 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-900 dark:text-blue-300 dark:decoration-blue-600 dark:hover:text-blue-200"
-                          >
-                            {item.propertyCode}
-                          </Link>
-                          <p className="text-[11px] text-gray-500">#{item.slug}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{item.title}</p>
-                          <p className="text-[11px] text-gray-500">{item.propertyType}</p>
-                          {item.description ? <p className="max-w-xs truncate text-[11px] text-gray-500">{item.description}</p> : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="capitalize">{item.listingType}</p>
-                        <p className="text-[11px] capitalize text-gray-500">{item.status}</p>
-                        <p className="text-[11px] text-gray-500">{formatPublishedDate(item.publishedAt)}</p>
-                      </TableCell>
-                      <TableCell>
-                        <p>{[item.locality, item.city].filter(Boolean).join(", ") || "-"}</p>
-                        <p className="text-[11px] text-gray-500">{item.state || "-"}</p>
-                        {item.addressLine1 ? <p className="max-w-xs truncate text-[11px] text-gray-500">{item.addressLine1}</p> : null}
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-[11px] text-gray-600 dark:text-slate-300">
-                          {item.bedrooms != null ? `${item.bedrooms} BHK` : "-"} | {item.bathrooms != null ? `${item.bathrooms} Bath` : "-"}
-                        </p>
-                        <p className="text-[11px] text-gray-600 dark:text-slate-300">
-                          {item.builtupArea != null ? `${item.builtupArea} ${item.builtupAreaUnit || "sqft"}` : "Area: -"}
-                        </p>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{formatPrice(item)}</p>
-                        {item.listingType !== "rent" && item.rentAmount != null ? (
-                          <p className="text-[11px] text-gray-500">Rent: {currency.format(item.rentAmount)}</p>
-                        ) : null}
-                        {item.listingType !== "sale" && item.priceAmount != null ? (
-                          <p className="text-[11px] text-gray-500">Sale: {currency.format(item.priceAmount)}</p>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-[11px] text-gray-600 dark:text-slate-300">{item.isFeatured ? "Featured" : "Standard"}</p>
-                        <p className="text-[11px] text-gray-600 dark:text-slate-300">{item.isVerified ? "Verified" : "Unverified"}</p>
-                      </TableCell>
+            <div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Property</TableHead>
+                      <TableHead>Listing</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Specs</TableHead>
+                      <TableHead>Pricing</TableHead>
+                      <TableHead>Visibility</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div>
+                            <Link
+                              to={`/properties/${item.id}/edit`}
+                              className="font-medium text-blue-700 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-900 dark:text-blue-300 dark:decoration-blue-600 dark:hover:text-blue-200"
+                            >
+                              {item.propertyCode}
+                            </Link>
+                            <p className="text-[11px] text-gray-500">#{item.slug}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{item.title}</p>
+                            <p className="text-[11px] text-gray-500">{item.propertyType}</p>
+                            {item.description ? <p className="max-w-xs truncate text-[11px] text-gray-500">{item.description}</p> : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p className="capitalize">{item.listingType}</p>
+                          <p className="text-[11px] capitalize text-gray-500">{item.status}</p>
+                          <p className="text-[11px] text-gray-500">{formatPublishedDate(item.publishedAt)}</p>
+                        </TableCell>
+                        <TableCell>
+                          <p>{[item.locality, item.city].filter(Boolean).join(", ") || "-"}</p>
+                          <p className="text-[11px] text-gray-500">{item.state || "-"}</p>
+                          {item.addressLine1 ? <p className="max-w-xs truncate text-[11px] text-gray-500">{item.addressLine1}</p> : null}
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-[11px] text-gray-600 dark:text-slate-300">
+                            {item.bedrooms != null ? `${item.bedrooms} BHK` : "-"} | {item.bathrooms != null ? `${item.bathrooms} Bath` : "-"}
+                          </p>
+                          <p className="text-[11px] text-gray-600 dark:text-slate-300">
+                            {item.builtupArea != null ? `${item.builtupArea} ${item.builtupAreaUnit || "sqft"}` : "Area: -"}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">{formatPrice(item)}</p>
+                          {item.listingType !== "rent" && item.rentAmount != null ? (
+                            <p className="text-[11px] text-gray-500">Rent: {currency.format(item.rentAmount)}</p>
+                          ) : null}
+                          {item.listingType !== "sale" && item.priceAmount != null ? (
+                            <p className="text-[11px] text-gray-500">Sale: {currency.format(item.priceAmount)}</p>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-[11px] text-gray-600 dark:text-slate-300">{item.isFeatured ? "Featured" : "Standard"}</p>
+                          <p className="text-[11px] text-gray-600 dark:text-slate-300">{item.isVerified ? "Verified" : "Unverified"}</p>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(nextSize) => {
+                  setPage(1);
+                  setPageSize(nextSize);
+                }}
+              />
             </div>
           ) : null}
         </CardContent>

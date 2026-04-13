@@ -560,6 +560,68 @@ export async function listApiProperties(limit = 50) {
   return result.rows.map(mapHomepageProperty);
 }
 
+export async function listApiPropertiesPaginated(page = 1, limit = 10) {
+  const db = await getDb();
+  const pageSize = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 10;
+  const requestedPage = Number.isFinite(page) ? Math.max(Math.trunc(page), 1) : 1;
+
+  const totalResult = await db.query<{ total: string }>(
+    `
+      select count(p.id)::text as total
+      from properties p
+      where p.deleted_at is null
+    `
+  );
+  const total = Number(totalResult.rows[0]?.total ?? "0");
+  const totalPages = total > 0 ? Math.ceil(total / pageSize) : 1;
+  const pageNumber = Math.min(requestedPage, totalPages);
+  const offset = (pageNumber - 1) * pageSize;
+
+  const result = await db.query<RawHomepageProperty>(
+    `
+      select
+        p.id::text,
+        p.property_code,
+        p.title,
+        p.slug,
+        p.description,
+        p.status,
+        p.listing_type,
+        p.property_type,
+        p.locality,
+        p.city,
+        p.state,
+        p.address_line1,
+        p.price_amount::text,
+        p.rent_amount::text,
+        p.price_label,
+        p.bedrooms,
+        p.bathrooms,
+        p.builtup_area::text,
+        p.builtup_area_unit,
+        p.cover_image,
+        p.is_featured,
+        p.is_verified,
+        p.published_at::text
+      from properties p
+      where p.deleted_at is null
+      order by coalesce(p.published_at, p.created_at) desc
+      limit $1 offset $2
+    `,
+    [pageSize, offset]
+  );
+
+  return {
+    items: result.rows.map(mapHomepageProperty),
+    pagination: {
+      page: pageNumber,
+      limit: pageSize,
+      total,
+      totalPages
+    }
+  };
+}
+
 export async function getPropertyBySlug(slug: string, listingType?: string) {
   const db = await getDb();
   const result = await db.query<RawPropertyDetail>(

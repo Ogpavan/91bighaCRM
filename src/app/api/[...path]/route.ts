@@ -56,7 +56,7 @@ import {
   getApiPropertyById,
   getPropertyTypeOptions,
   hardDeletePropertyById,
-  listApiProperties,
+  listApiPropertiesPaginated,
   updatePropertyById
 } from "@/lib/properties";
 import { getAppSettings, updateAppSettings } from "@/lib/app-settings";
@@ -1678,9 +1678,12 @@ function buildPropertyDuplicateSignature(input: {
 async function handlePropertiesApi(request: Request, method: string, segments: string[]) {
   if (segments.length === 1) {
     if (method === "GET") {
-      const items = await listApiProperties(50);
+      const url = new URL(request.url);
+      const page = ensureNumber(url.searchParams.get("page"), 1);
+      const limit = ensureNumber(url.searchParams.get("limit"), 10);
+      const data = await listApiPropertiesPaginated(page, limit);
       const propertyTypes = await getPropertyTypeOptions();
-      return jsonResponse({ ok: true, items, propertyTypes }, 200, request);
+      return jsonResponse({ ok: true, items: data.items, pagination: data.pagination, propertyTypes }, 200, request);
     }
 
     if (method === "POST") {

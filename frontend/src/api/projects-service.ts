@@ -108,6 +108,12 @@ export type UpdateProjectPayload = CreateProjectPayload;
 type ProjectsResponse = {
   ok: boolean;
   items: ProjectListing[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
   propertyTypes: ProjectPropertyType[];
   error?: string;
 };
@@ -150,10 +156,17 @@ export type ImportPropertiesResponse = {
   error?: string;
 };
 
-export async function getProjects(): Promise<{ items: ProjectListing[]; propertyTypes: ProjectPropertyType[] }> {
-  const data = await apiRequest<ProjectsResponse>("/api/properties");
+export async function getProjects(params?: { page?: number; limit?: number }): Promise<{
+  items: ProjectListing[];
+  propertyTypes: ProjectPropertyType[];
+  pagination: ProjectsResponse["pagination"];
+}> {
+  const page = params?.page ?? 1;
+  const limit = params?.limit ?? 10;
+  const data = await apiRequest<ProjectsResponse>(`/api/properties?page=${page}&limit=${limit}`);
   return {
     items: data.items,
+    pagination: data.pagination,
     propertyTypes: getCrmPropertyTypeItems().map((item, index) => ({
       ...item,
       id: Number.parseInt(item.id, 10) || index + 1
