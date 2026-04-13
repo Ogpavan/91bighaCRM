@@ -377,7 +377,10 @@ export default function ProjectsPage() {
     try {
       const result = await importProperties(importFile);
       setImportResult(result);
-      setSuccess(`Imported ${result.importedCount} properties.${result.failedCount ? ` ${result.failedCount} rows failed.` : ""}`);
+      const skippedCount = result.skippedCount ?? 0;
+      setSuccess(
+        `Imported ${result.importedCount} properties.${skippedCount ? ` ${skippedCount} duplicates skipped.` : ""}${result.failedCount ? ` ${result.failedCount} rows failed.` : ""}`
+      );
       await loadProjects();
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : "Failed to import properties.");
@@ -774,8 +777,15 @@ export default function ProjectsPage() {
           {importResult ? (
             <div className="space-y-3 rounded-sm border border-gray-200 bg-gray-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/50">
               <p className="font-medium text-gray-800 dark:text-slate-100">
-                Imported {importResult.importedCount} properties{importResult.failedCount ? `, ${importResult.failedCount} failed` : ""}.
+                Imported {importResult.importedCount} properties
+                {(importResult.skippedCount ?? 0) ? `, ${importResult.skippedCount} duplicates skipped` : ""}
+                {importResult.failedCount ? `, ${importResult.failedCount} failed` : ""}.
               </p>
+              {importResult.importedTruncated || importResult.skippedTruncated || importResult.errorsTruncated ? (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                  Large import detected. Showing only first 200 imported/skipped/error rows in this summary.
+                </p>
+              ) : null}
               <div>
                 <p className="font-medium text-gray-700 dark:text-slate-200">Detected mappings</p>
                 <div className="mt-2 grid gap-1 md:grid-cols-2">
@@ -786,6 +796,18 @@ export default function ProjectsPage() {
                   ))}
                 </div>
               </div>
+              {importResult.skipped?.length ? (
+                <div>
+                  <p className="font-medium text-amber-700 dark:text-amber-300">Skipped Duplicates</p>
+                  <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                    {importResult.skipped.map((entry) => (
+                      <p key={`${entry.row}-${entry.reason}`} className="text-[11px] text-amber-700 dark:text-amber-300">
+                        Row {entry.row}: {entry.reason}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {importResult.errors.length ? (
                 <div>
                   <p className="font-medium text-red-600">Row Errors</p>

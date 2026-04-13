@@ -263,7 +263,7 @@ export default async function HomePage() {
 
 				<div className="feature-slider-item features-slider position-none">
 					{saleProperties.length ? saleProperties.map((property, index) => {
-						const coverImage = property.coverImage ?? "/assets/img/home/home-03.jpg";
+						const coverImage = property.coverImage?.trim() || null;
 						const location = formatPropertyAddress(property) || "Bareilly";
 						const price = formatPropertyPrice(property);
 						const duration = 1000 + (index % 3) * 200;
@@ -275,7 +275,13 @@ export default async function HomePage() {
 										<div className="property-listing-item p-0 mb-0 shadow-none">
 											<div className="buy-grid-img mb-0 rounded-0">
 												<Link href={`/buy-details/${property.slug}`}>
-													<img className="img-fluid" src={coverImage} alt={property.title} />
+													{coverImage ? (
+														<img className="img-fluid" src={coverImage} alt={property.title} />
+													) : (
+														<div className="d-flex h-100 w-100 align-items-center justify-content-center bg-light text-muted">
+															No Image
+														</div>
+													)}
 												</Link>
 												<div className="d-flex align-items-center justify-content-between position-absolute top-0 start-0 end-0 p-3 z-1">
 													<div className="d-flex align-items-center gap-2">

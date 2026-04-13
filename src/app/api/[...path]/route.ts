@@ -1618,6 +1618,63 @@ function normalizeHeader(value: string) {
     .trim();
 }
 
+function normalizeComparableText(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeComparableNumber(value: unknown) {
+  const parsed = toOptionalNumber(value);
+  if (parsed === null) {
+    return "";
+  }
+
+  return String(parsed);
+}
+
+function normalizePropertyCode(value: unknown) {
+  const normalized = normalizeComparableText(value).toUpperCase();
+  return normalized || null;
+}
+
+function buildPropertyDuplicateSignature(input: {
+  title?: unknown;
+  listingType?: unknown;
+  propertyType?: unknown;
+  locality?: unknown;
+  city?: unknown;
+  state?: unknown;
+  addressLine1?: unknown;
+  pincode?: unknown;
+  bedrooms?: unknown;
+  bathrooms?: unknown;
+  builtupArea?: unknown;
+  priceAmount?: unknown;
+  rentAmount?: unknown;
+}) {
+  return [
+    normalizeComparableText(input.title),
+    normalizeComparableText(input.listingType),
+    normalizeComparableText(input.propertyType),
+    normalizeComparableText(input.locality),
+    normalizeComparableText(input.city),
+    normalizeComparableText(input.state),
+    normalizeComparableText(input.addressLine1),
+    normalizeComparableText(input.pincode),
+    normalizeComparableNumber(input.bedrooms),
+    normalizeComparableNumber(input.bathrooms),
+    normalizeComparableNumber(input.builtupArea),
+    normalizeComparableNumber(input.priceAmount),
+    normalizeComparableNumber(input.rentAmount)
+  ].join("|");
+}
+
 async function handlePropertiesApi(request: Request, method: string, segments: string[]) {
   if (segments.length === 1) {
     if (method === "GET") {
@@ -1657,6 +1714,8 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
   }
 
   if (segments[1] === "import" && method === "POST") {
+    const RESULT_PREVIEW_LIMIT = 200;
+
     const form = await parseForm(request);
     const file = form.get("file");
     if (!(file instanceof File)) {
@@ -1704,6 +1763,7 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
     const headers = rows.length ? Object.keys(rows[0]) : [];
 
     const aliases: Record<string, string[]> = {
+      propertyCode: ["property code", "property_code", "property id", "property_id"],
       title: ["title", "name", "property title", "prop heading", "prop_heading", "heading"],
       description: ["description", "desc"],
       listingType: ["listing type", "listing_type", "listing", "listing type label", "preference"],
@@ -1794,9 +1854,84 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
       propertyTypes.map((type) => [normalizeHeader(type.slug), type.name])
     );
 
+    const { existingPropertyCodes, existingSignatures } = await withDbClient(async (client) => {
+      const existingRows = await client.query<{
+        property_code: string;
+        title: string;
+        listing_type: string;
+        property_type: string;
+        locality: string | null;
+        city: string | null;
+        state: string | null;
+        address_line1: string | null;
+        pincode: string | null;
+        bedrooms: number | null;
+        bathrooms: number | null;
+        builtup_area: string | null;
+        price_amount: string | null;
+        rent_amount: string | null;
+      }>(
+        `
+          select
+            property_code,
+            title,
+            listing_type,
+            property_type,
+            locality,
+            city,
+            state,
+            address_line1,
+            pincode,
+            bedrooms,
+            bathrooms,
+            builtup_area::text,
+            price_amount::text,
+            rent_amount::text
+          from properties
+          where deleted_at is null
+        `
+      );
+
+      const loadedPropertyCodes = new Set<string>();
+      const loadedSignatures = new Set<string>();
+
+      for (const existing of existingRows.rows) {
+        const normalizedCode = normalizePropertyCode(existing.property_code);
+        if (normalizedCode) {
+          loadedPropertyCodes.add(normalizedCode);
+        }
+
+        loadedSignatures.add(
+          buildPropertyDuplicateSignature({
+            title: existing.title,
+            listingType: existing.listing_type,
+            propertyType: existing.property_type,
+            locality: existing.locality,
+            city: existing.city,
+            state: existing.state,
+            addressLine1: existing.address_line1,
+            pincode: existing.pincode,
+            bedrooms: existing.bedrooms,
+            bathrooms: existing.bathrooms,
+            builtupArea: existing.builtup_area,
+            priceAmount: existing.price_amount,
+            rentAmount: existing.rent_amount
+          })
+        );
+      }
+
+      return {
+        existingPropertyCodes: loadedPropertyCodes,
+        existingSignatures: loadedSignatures
+      };
+    });
+
     const imported: Array<{ row: number; propertyCode: string; slug: string }> = [];
+    const skipped: Array<{ row: number; reason: string }> = [];
     const errors: Array<{ row: number; error: string }> = [];
     const downloadedImageCache = new Map<string, string>();
+    const importedPropertyCodes = new Set<string>();
+    const importedSignatures = new Set<string>();
 
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
@@ -1809,6 +1944,7 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
         };
 
         const titleRaw = String(getValue("title") ?? "").trim();
+        const propertyCodeRaw = String(getValue("propertyCode") ?? "").trim();
         const listingTypeRaw = String(getValue("listingType") ?? "").trim();
         const propertyTypeRaw = getValue("propertyType");
         const rawLocality = String(getValue("locality") ?? "").trim();
@@ -1836,6 +1972,49 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
 
         const fallbackTitle = `${propertyType} in ${locality}${String(getValue("city") ?? "").trim() ? `, ${String(getValue("city") ?? "").trim()}` : ""}`;
         const title = titleRaw && !/https?:\/\//i.test(titleRaw) ? titleRaw : fallbackTitle;
+
+        const pincode = String(getValue("pincode") ?? "").trim() || undefined;
+        const addressLine1 = String(getValue("addressLine1") ?? "").trim() || undefined;
+        const city = String(getValue("city") ?? "").trim() || undefined;
+        const state = String(getValue("state") ?? "").trim() || undefined;
+        const bedrooms = toOptionalNumber(getValue("bedrooms")) ?? undefined;
+        const bathrooms = toOptionalNumber(getValue("bathrooms")) ?? undefined;
+        const builtupArea =
+          toOptionalNumber(getValue("builtupArea")) ??
+          parseAreaValue(getValue("area")).amount ??
+          parseAreaValue(getValue("secondaryArea")).amount ??
+          undefined;
+        const priceAmount = toOptionalNumber(getValue("priceAmount")) ?? undefined;
+        const rentAmount = toOptionalNumber(getValue("rentAmount")) ?? undefined;
+
+        const normalizedPropertyCode = normalizePropertyCode(propertyCodeRaw);
+        if (normalizedPropertyCode) {
+          if (existingPropertyCodes.has(normalizedPropertyCode) || importedPropertyCodes.has(normalizedPropertyCode)) {
+            skipped.push({ row: rowNumber, reason: `Skipped duplicate property code: ${normalizedPropertyCode}` });
+            continue;
+          }
+        }
+
+        const duplicateSignature = buildPropertyDuplicateSignature({
+          title,
+          listingType,
+          propertyType,
+          locality,
+          city,
+          state,
+          addressLine1,
+          pincode,
+          bedrooms,
+          bathrooms,
+          builtupArea,
+          priceAmount,
+          rentAmount
+        });
+
+        if (existingSignatures.has(duplicateSignature) || importedSignatures.has(duplicateSignature)) {
+          skipped.push({ row: rowNumber, reason: "Skipped duplicate property data." });
+          continue;
+        }
 
         const imageSources = Array.from(
           new Set([
@@ -1870,32 +2049,28 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
           locality,
           country: String(getValue("country") ?? "").trim() || undefined,
           subLocality: String(getValue("subLocality") ?? "").trim() || undefined,
-          city: String(getValue("city") ?? "").trim() || undefined,
-          state: String(getValue("state") ?? "").trim() || undefined,
-          addressLine1: String(getValue("addressLine1") ?? "").trim() || undefined,
+          city,
+          state,
+          addressLine1,
           addressLine2: String(getValue("addressLine2") ?? "").trim() || undefined,
           landmark: String(getValue("landmark") ?? "").trim() || undefined,
-          pincode: String(getValue("pincode") ?? "").trim() || undefined,
+          pincode,
           status: String(getValue("status") ?? "").trim() || undefined,
           possessionStatus: String(getValue("possessionStatus") ?? "").trim() || undefined,
           facing: normalizeFacingValue(String(getValue("facing") ?? "")) || undefined,
           latitude: toOptionalNumber(getValue("latitude")) ?? undefined,
           longitude: toOptionalNumber(getValue("longitude")) ?? undefined,
-          priceAmount: toOptionalNumber(getValue("priceAmount")) ?? undefined,
-          rentAmount: toOptionalNumber(getValue("rentAmount")) ?? undefined,
+          priceAmount,
+          rentAmount,
           securityDeposit: toOptionalNumber(getValue("securityDeposit")) ?? undefined,
           maintenanceAmount: toOptionalNumber(getValue("maintenanceAmount")) ?? undefined,
           priceLabel: String(getValue("priceLabel") ?? "").trim() || undefined,
-          bedrooms: toOptionalNumber(getValue("bedrooms")) ?? undefined,
-          bathrooms: toOptionalNumber(getValue("bathrooms")) ?? undefined,
+          bedrooms,
+          bathrooms,
           balconies: toOptionalNumber(getValue("balconies")) ?? undefined,
           floorNumber: toOptionalNumber(getValue("floorNumber")) ?? undefined,
           floorsTotal: toOptionalNumber(getValue("floorsTotal")) ?? undefined,
-          builtupArea:
-            toOptionalNumber(getValue("builtupArea")) ??
-            parseAreaValue(getValue("area")).amount ??
-            parseAreaValue(getValue("secondaryArea")).amount ??
-            undefined,
+          builtupArea,
           builtupAreaUnit:
             String(getValue("builtupAreaUnit") ?? "").trim() ||
             parseAreaValue(getValue("area")).unit ||
@@ -1915,6 +2090,10 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
 
         const created = await createProperty(payload);
         imported.push({ row: rowNumber, propertyCode: created.propertyCode, slug: created.slug });
+        if (normalizedPropertyCode) {
+          importedPropertyCodes.add(normalizedPropertyCode);
+        }
+        importedSignatures.add(duplicateSignature);
       } catch (error) {
         errors.push({
           row: rowNumber,
@@ -1931,10 +2110,16 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
     return jsonResponse(
       {
         ok: true,
+        totalRows: rows.length,
         importedCount: imported.length,
+        skippedCount: skipped.length,
         failedCount: errors.length,
-        imported,
-        errors,
+        imported: imported.slice(0, RESULT_PREVIEW_LIMIT),
+        skipped: skipped.slice(0, RESULT_PREVIEW_LIMIT),
+        errors: errors.slice(0, RESULT_PREVIEW_LIMIT),
+        importedTruncated: imported.length > RESULT_PREVIEW_LIMIT,
+        skippedTruncated: skipped.length > RESULT_PREVIEW_LIMIT,
+        errorsTruncated: errors.length > RESULT_PREVIEW_LIMIT,
         mapping,
         headers
       },

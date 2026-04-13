@@ -135,9 +135,15 @@ type ProjectDetailResponse = {
 
 export type ImportPropertiesResponse = {
   ok: boolean;
+  totalRows?: number;
   importedCount: number;
+  skippedCount?: number;
   failedCount: number;
+  importedTruncated?: boolean;
+  skippedTruncated?: boolean;
+  errorsTruncated?: boolean;
   imported: Array<{ row: number; propertyCode: string; slug: string }>;
+  skipped?: Array<{ row: number; reason: string }>;
   errors: Array<{ row: number; error: string }>;
   mapping: Record<string, string | null>;
   headers: string[];
