@@ -88,13 +88,33 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }: Sideba
               >
                 {collapsed ? (
                   logoUrl ? (
-                    <img src={logoUrl} alt={appName} className="h-10 w-auto max-w-10 object-contain" />
+                   <img
+  src={logoUrl || "/logo.png"}
+  alt={appName}
+  className={collapsed ? "h-10 w-auto max-w-10 object-contain" : "h-10 w-auto max-w-[140px] object-contain"}
+  onError={(e) => {
+    const target = e.currentTarget;
+    if (target.src !== window.location.origin + "/logo.png") {
+      target.src = "/logo.png";
+    }
+  }}
+/>
                   ) : (
                     appName.slice(0, 2).toUpperCase()
                   )
                 ) : (
                   logoUrl ? (
-                    <img src={logoUrl} alt={appName} className="h-10 w-auto max-w-[140px] object-contain" />
+                    <img
+  src={logoUrl || "/logo.png"}
+  alt={appName}
+  className={collapsed ? "h-10 w-auto max-w-10 object-contain" : "h-10 w-auto max-w-[140px] object-contain"}
+  onError={(e) => {
+    const target = e.currentTarget;
+    if (target.src !== window.location.origin + "/logo.png") {
+      target.src = "/logo.png";
+    }
+  }}
+/>
                   ) : (
                     <span className="flex h-12 w-12 items-center justify-center rounded-sm bg-[var(--brand-soft)] text-[10px] uppercase">
                       {appName.slice(0, 2).toUpperCase()}
