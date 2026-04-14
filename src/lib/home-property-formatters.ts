@@ -11,11 +11,10 @@ export function formatPropertyPrice(property: HomepageProperty) {
     return "Price on request";
   }
 
-  const formatted = new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  const formattedNumber = new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0
   }).format(value);
+  const formatted = `Rs ${formattedNumber}`;
 
   return property.listingType === "rent" ? `${formatted} / month` : formatted;
 }

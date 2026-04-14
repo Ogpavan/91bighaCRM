@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HomeSearchForm } from "@/components/home-search-form";
 import { HomeLivePropertiesSection } from "@/components/home-live-properties-section";
 import {
   formatPropertyAddress,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/home-property-formatters";
 import type { HomepageProperty } from "@/lib/properties";
 import {
+  getListingPriceRange,
   getPropertyTypeOptions,
   listHomepageProperties,
   listPropertyTypeCounts,
@@ -19,7 +21,12 @@ export default async function HomePage() {
   let rentProperties: HomepageProperty[] = [];
   let propertyTypeCounts: PropertyTypeCount[] = [];
 
-  const propertyTypeOptions = await getPropertyTypeOptions();
+  const [salePropertyTypeOptions, rentPropertyTypeOptions, salePriceRange, rentPriceRange] = await Promise.all([
+    getPropertyTypeOptions("sale"),
+    getPropertyTypeOptions("rent"),
+    getListingPriceRange("sale"),
+    getListingPriceRange("rent")
+  ]);
 
   try {
     [saleProperties, rentProperties, propertyTypeCounts] = await Promise.all([
@@ -61,75 +68,25 @@ export default async function HomePage() {
 					<div className="tab-content">
 						<div className="tab-pane fade show active" id="buy_property" role="tabpanel">
 							<div className="search-item">
-								<form action="/buy-property-grid-sidebar" method="get">
-									<div className="d-flex align-items-bottom flex-wrap flex-lg-nowrap gap-3">
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Property Type</label>
-											<select className="form-select" name="propertyType" defaultValue="">
-												<option value="">All Types</option>
-												{propertyTypeOptions.map((option) => (
-													<option key={option.slug} value={option.name}>
-														{option.name}
-													</option>
-												))}
-											</select>
-										</div>
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Location</label>
-											<input type="text" name="location" className="form-control" placeholder="Enter Bareilly locality" />
-										</div>
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Min Budget</label>
-											<input type="number" name="minPrice" min="0" step="100000" className="form-control" placeholder="2500000" />
-										</div>
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Max Budget</label>
-											<input type="number" name="maxPrice" min="0" step="100000" className="form-control" placeholder="20000000" />
-										</div>
-										<div className="custom-search-item d-flex align-items-end">
-											<button type="submit" className="btn btn-primary">
-												<i className="material-icons-outlined">search</i>
-											</button>
-										</div>
-									</div>
-								</form>
+								<HomeSearchForm
+									listingType="sale"
+									action="/buy-property-grid-sidebar"
+									propertyTypeOptions={salePropertyTypeOptions}
+									minAllowedPrice={salePriceRange.minPrice}
+									maxAllowedPrice={salePriceRange.maxPrice}
+								/>
 							</div>
 						</div>
 
 						<div className="tab-pane fade" id="rent_property" role="tabpanel">
 							<div className="search-item">
-								<form action="/rent-property-grid-sidebar" method="get">
-									<div className="d-flex align-items-bottom flex-wrap flex-lg-nowrap gap-3">
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Property Type</label>
-											<select className="form-select" name="propertyType" defaultValue="">
-												<option value="">All Types</option>
-												{propertyTypeOptions.map((option) => (
-													<option key={option.slug} value={option.name}>
-														{option.name}
-													</option>
-												))}
-											</select>
-										</div>
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Location</label>
-											<input type="text" name="location" className="form-control" placeholder="Enter Bareilly rental area" />
-										</div>
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Min Rent</label>
-											<input type="number" name="minPrice" min="0" step="1000" className="form-control" placeholder="8000" />
-										</div>
-										<div className="flex-fill select-field w-100">
-											<label className="form-label">Max Rent</label>
-											<input type="number" name="maxPrice" min="0" step="1000" className="form-control" placeholder="35000" />
-										</div>
-										<div className="custom-search-item d-flex align-items-end">
-											<button type="submit" className="btn btn-primary">
-												<i className="material-icons-outlined">search</i>
-											</button>
-										</div>
-									</div>
-								</form>
+								<HomeSearchForm
+									listingType="rent"
+									action="/rent-property-grid-sidebar"
+									propertyTypeOptions={rentPropertyTypeOptions}
+									minAllowedPrice={rentPriceRange.minPrice}
+									maxAllowedPrice={rentPriceRange.maxPrice}
+								/>
 							</div>
 						</div>
 					</div>

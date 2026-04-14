@@ -62,10 +62,21 @@ export type PropertyTypeCount = {
   propertyCount: number;
 };
 
+export type ListingPriceRange = {
+  minPrice: number | null;
+  maxPrice: number | null;
+};
+
+export type LocationLocalityOption = {
+  location: string;
+  localities: string[];
+};
+
 export type SearchPropertiesInput = {
   listingType: string;
   propertyType?: string | null;
   location?: string | null;
+  locality?: string | null;
   minPrice?: number | null;
   maxPrice?: number | null;
   bedrooms?: number | null;
@@ -311,12 +322,73 @@ export const CRM_PROPERTY_TYPES = [
   "Office"
 ];
 
-export async function getPropertyTypeOptions() {
-  return CRM_PROPERTY_TYPES.map((name, index) => ({
+export async function getPropertyTypeOptions(listingType?: string | null) {
+  const db = await getDb();
+  const params: Array<string> = [];
+  const listingTypeFilter = listingType?.trim();
+  const result = await db.query<{ name: string }>(
+    `
+      select min(trim(p.property_type)) as name
+      from properties p
+      where p.deleted_at is null
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and nullif(trim(p.property_type), '') is not null
+        ${listingTypeFilter ? `and lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))` : ""}
+      group by lower(trim(p.property_type))
+      order by min(trim(p.property_type)) asc
+    `,
+    listingTypeFilter ? [listingTypeFilter] : params
+  );
+
+  return result.rows.map((row, index) => ({
     id: index + 1,
-    name,
-    slug: slugify(name)
+    name: row.name,
+    slug: slugify(row.name)
   }));
+}
+
+export async function listLocationLocalityOptions(
+  listingType: string
+): Promise<LocationLocalityOption[]> {
+  const db = await getDb();
+  const result = await db.query<{ location: string | null; locality: string | null }>(
+    `
+      select
+        nullif(trim(p.city), '') as location,
+        nullif(trim(p.locality), '') as locality
+      from properties p
+      where p.deleted_at is null
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))
+    `,
+    [listingType]
+  );
+
+  const map = new Map<string, Set<string>>();
+
+  result.rows.forEach((row) => {
+    const location = row.location?.trim();
+    const locality = row.locality?.trim();
+
+    if (!location) {
+      return;
+    }
+
+    if (!map.has(location)) {
+      map.set(location, new Set<string>());
+    }
+
+    if (locality) {
+      map.get(location)?.add(locality);
+    }
+  });
+
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([location, localities]) => ({
+      location,
+      localities: Array.from(localities).sort((a, b) => a.localeCompare(b))
+    }));
 }
 
 export async function listHomepageProperties(listingType: string, limit = 6) {
@@ -349,8 +421,8 @@ export async function listHomepageProperties(listingType: string, limit = 6) {
         p.published_at::text
       from properties p
       where p.deleted_at is null
-        and p.status = 'active'
-        and p.listing_type = $1
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))
       order by p.is_featured desc, coalesce(p.published_at, p.created_at) desc
       limit $2
     `,
@@ -360,10 +432,48 @@ export async function listHomepageProperties(listingType: string, limit = 6) {
   return result.rows.map(mapHomepageProperty);
 }
 
+export async function getListingPriceRange(listingType: string): Promise<ListingPriceRange> {
+  const db = await getDb();
+  const parsedPriceLabelExpression = `
+    case
+      when nullif(trim(coalesce(p.price_label, '')), '') is null then null
+      when lower(p.price_label) ~ '(cr|crore)' then nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric * 10000000
+      when lower(p.price_label) ~ '(lac|lakh)' then nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric * 100000
+      when lower(p.price_label) ~ '(^|\\s)k($|\\s)' then nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric * 1000
+      else nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric
+    end
+  `;
+  const effectivePriceExpression =
+    listingType === "rent"
+      ? `coalesce(p.rent_amount, ${parsedPriceLabelExpression})`
+      : `coalesce(p.price_amount, ${parsedPriceLabelExpression})`;
+  const result = await db.query<{ min_price: string | null; max_price: string | null }>(
+    `
+      select
+        min(${effectivePriceExpression})::text as min_price,
+        max(${effectivePriceExpression})::text as max_price
+      from properties p
+      where p.deleted_at is null
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))
+        and ${effectivePriceExpression} is not null
+        and ${effectivePriceExpression} > 0
+    `,
+    [listingType]
+  );
+
+  const row = result.rows[0];
+  return {
+    minPrice: normalizeNumber(row?.min_price),
+    maxPrice: normalizeNumber(row?.max_price)
+  };
+}
+
 export async function searchProperties({
   listingType,
   propertyType,
   location,
+  locality,
   minPrice,
   maxPrice,
   bedrooms,
@@ -378,15 +488,15 @@ export async function searchProperties({
   const db = await getDb();
   const filters: string[] = [
     "p.deleted_at is null",
-    "p.status = 'active'",
-    "p.listing_type = $1"
+    "lower(trim(coalesce(p.status, ''))) = 'active'",
+    "lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))"
   ];
   const params: Array<string | number> = [listingType];
 
   const normalizedPropertyType = propertyType?.trim();
   if (normalizedPropertyType) {
     params.push(normalizedPropertyType);
-    filters.push(`lower(coalesce(p.property_type, '')) = lower($${params.length})`);
+    filters.push(`lower(trim(coalesce(p.property_type, ''))) = lower(trim($${params.length}))`);
   }
 
   const normalizedLocation = location?.trim();
@@ -401,15 +511,33 @@ export async function searchProperties({
     );
   }
 
-  const priceColumn = listingType === "rent" ? "p.rent_amount" : "p.price_amount";
+  const normalizedLocality = locality?.trim();
+  if (normalizedLocality) {
+    params.push(normalizedLocality);
+    filters.push(`lower(trim(coalesce(p.locality, ''))) = lower(trim($${params.length}))`);
+  }
+
+  const parsedPriceLabelExpression = `
+    case
+      when nullif(trim(coalesce(p.price_label, '')), '') is null then null
+      when lower(p.price_label) ~ '(cr|crore)' then nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric * 10000000
+      when lower(p.price_label) ~ '(lac|lakh)' then nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric * 100000
+      when lower(p.price_label) ~ '(^|\\s)k($|\\s)' then nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric * 1000
+      else nullif(regexp_replace(lower(p.price_label), '[^0-9.]', '', 'g'), '')::numeric
+    end
+  `;
+  const effectivePriceExpression =
+    listingType === "rent"
+      ? `coalesce(p.rent_amount, ${parsedPriceLabelExpression})`
+      : `coalesce(p.price_amount, ${parsedPriceLabelExpression})`;
   if (typeof minPrice === "number" && Number.isFinite(minPrice)) {
     params.push(minPrice);
-    filters.push(`${priceColumn} >= $${params.length}`);
+    filters.push(`${effectivePriceExpression} >= $${params.length}`);
   }
 
   if (typeof maxPrice === "number" && Number.isFinite(maxPrice)) {
     params.push(maxPrice);
-    filters.push(`${priceColumn} <= $${params.length}`);
+    filters.push(`${effectivePriceExpression} <= $${params.length}`);
   }
 
   if (typeof bedrooms === "number" && Number.isFinite(bedrooms)) {
@@ -505,7 +633,7 @@ export async function listPropertyTypeCounts(limit = 6) {
         count(p.id)::text as property_count
       from properties p
       where p.deleted_at is null
-        and p.status = 'active'
+        and lower(trim(coalesce(p.status, ''))) = 'active'
         and coalesce(p.property_type, '') <> ''
       group by p.property_type
       order by count(p.id) desc, p.property_type asc
@@ -671,9 +799,9 @@ export async function getPropertyBySlug(slug: string, listingType?: string) {
         p.published_at::text
       from properties p
       where p.deleted_at is null
-        and p.status = 'active'
+        and lower(trim(coalesce(p.status, ''))) = 'active'
         and p.slug = $1
-        and ($2::text is null or p.listing_type = $2)
+        and ($2::text is null or lower(trim(coalesce(p.listing_type, ''))) = lower(trim($2)))
       limit 1
     `,
     [slug, listingType ?? null]

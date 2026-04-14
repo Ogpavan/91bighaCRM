@@ -1,10 +1,11 @@
 import { PropertySearchResultsPage } from "@/components/property-search-results-page";
-import { getPropertyTypeOptions, searchProperties } from "@/lib/properties";
+import { getListingPriceRange, getPropertyTypeOptions, searchProperties } from "@/lib/properties";
 
 type BuyPropertyGridSidebarPageProps = {
   searchParams: Promise<{
     propertyType?: string;
     location?: string;
+    locality?: string;
     minPrice?: string;
     maxPrice?: string;
     bedrooms?: string;
@@ -68,6 +69,22 @@ function normalizeRange(minValue: number | null, maxValue: number | null) {
   return { minValue, maxValue };
 }
 
+function clampToRange(value: number | null, minValue: number | null, maxValue: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return value;
+  }
+
+  let nextValue = value;
+  if (typeof minValue === "number" && Number.isFinite(minValue)) {
+    nextValue = Math.max(nextValue, minValue);
+  }
+  if (typeof maxValue === "number" && Number.isFinite(maxValue)) {
+    nextValue = Math.min(nextValue, maxValue);
+  }
+
+  return nextValue;
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function BuyPropertyGridSidebarPage({
@@ -84,11 +101,13 @@ export default async function BuyPropertyGridSidebarPage({
     parseInteger(params.minArea),
     parseInteger(params.maxArea)
   );
+  const priceRange = await getListingPriceRange("sale");
   const filters = {
     propertyType: params.propertyType?.trim() || null,
     location: params.location?.trim() || null,
-    minPrice: normalizedPrices.minPrice,
-    maxPrice: normalizedPrices.maxPrice,
+    locality: params.locality?.trim() || null,
+    minPrice: clampToRange(normalizedPrices.minPrice, priceRange.minPrice, priceRange.maxPrice),
+    maxPrice: clampToRange(normalizedPrices.maxPrice, priceRange.minPrice, priceRange.maxPrice),
     bedrooms: parseInteger(params.bedrooms),
     bathrooms: parseInteger(params.bathrooms),
     minArea: normalizedArea.minValue,
@@ -101,12 +120,17 @@ export default async function BuyPropertyGridSidebarPage({
     limit: pageSize,
     ...filters
   });
-  const propertyTypeOptions = await getPropertyTypeOptions();
+  const propertyTypeOptions = await getPropertyTypeOptions("sale");
+  const suggestedResult = result.total === 0
+    ? await searchProperties({ listingType: "sale", page: 1, limit: 4 })
+    : null;
+  const suggestedProperties = suggestedResult?.items ?? [];
 
   return (
     <PropertySearchResultsPage
       listingType="sale"
       properties={result.items}
+      suggestedProperties={suggestedProperties}
       propertyTypeOptions={propertyTypeOptions}
       filters={filters}
       pagination={{

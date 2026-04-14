@@ -10,10 +10,12 @@ import {
 type PropertySearchResultsPageProps = {
   listingType: "sale" | "rent";
   properties: HomepageProperty[];
+  suggestedProperties?: HomepageProperty[];
   propertyTypeOptions: PropertyTypeOption[];
   filters: {
     propertyType?: string | null;
     location?: string | null;
+    locality?: string | null;
     minPrice?: number | null;
     maxPrice?: number | null;
     bedrooms?: number | null;
@@ -118,6 +120,7 @@ function ResultCard({ property }: { property: HomepageProperty }) {
 export function PropertySearchResultsPage({
   listingType,
   properties,
+  suggestedProperties = [],
   propertyTypeOptions,
   filters,
   pagination
@@ -156,16 +159,28 @@ export function PropertySearchResultsPage({
     });
   }
 
-  const localityOptions = Array.from(
+  const locationOptions = Array.from(
     new Set(
       properties
-        .map((property) => property.locality?.trim() || property.city?.trim() || "")
+        .map((property) => property.city?.trim() || "")
         .filter(Boolean)
     )
   ).sort((a, b) => a.localeCompare(b));
 
-  if (filters.location && !localityOptions.some((option) => option === filters.location)) {
-    localityOptions.unshift(filters.location);
+  if (filters.location && !locationOptions.some((option) => option === filters.location)) {
+    locationOptions.unshift(filters.location);
+  }
+
+  const localityOptions = Array.from(
+    new Set(
+      properties
+        .map((property) => property.locality?.trim() || "")
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  if (filters.locality && !localityOptions.some((option) => option === filters.locality)) {
+    localityOptions.unshift(filters.locality);
   }
 
   const bedroomsOptions = Array.from(
@@ -196,6 +211,7 @@ export function PropertySearchResultsPage({
   const chips = [
     filters.propertyType ? `Type: ${filters.propertyType}` : null,
     filters.location ? `Location: ${filters.location}` : null,
+    filters.locality ? `Locality: ${filters.locality}` : null,
     filters.minPrice ? `Min: ${formatMoney(filters.minPrice)}` : null,
     filters.maxPrice ? `Max: ${formatMoney(filters.maxPrice)}` : null,
     filters.bedrooms ? `Beds: ${filters.bedrooms}+` : null,
@@ -214,6 +230,9 @@ export function PropertySearchResultsPage({
     }
     if (filters.location) {
       params.set("location", filters.location);
+    }
+    if (filters.locality) {
+      params.set("locality", filters.locality);
     }
     if (typeof filters.minPrice === "number") {
       params.set("minPrice", String(filters.minPrice));
@@ -296,7 +315,18 @@ export function PropertySearchResultsPage({
                       <div className="mb-2">
                         <label className="form-label mb-1">Location</label>
                         <select name="location" className="form-select" defaultValue={filters.location ?? ""}>
-                          <option value="">All Areas</option>
+                          <option value="">All Locations</option>
+                          {locationOptions.map((location) => (
+                            <option key={location} value={location}>
+                              {location}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label mb-1">Locality</label>
+                        <select name="locality" className="form-select" defaultValue={filters.locality ?? ""}>
+                          <option value="">All Localities</option>
                           {localityOptions.map((locality) => (
                             <option key={locality} value={locality}>
                               {locality}
@@ -437,12 +467,25 @@ export function PropertySearchResultsPage({
               {properties.length ? (
                 properties.map((property) => <ResultCard key={property.id} property={property} />)
               ) : (
-                <div className="col-12">
-                  <div className="alert alert-light border rounded-0 mb-0">
-                    <h5 className="mb-2">{emptyTitle}</h5>
-                    <p className="mb-0">Try a different location, property type, or budget range.</p>
+                <>
+                  <div className="col-12">
+                    <div className="alert alert-light border rounded-0 mb-0">
+                      <h5 className="mb-2">{emptyTitle}</h5>
+                      <p className="mb-1">Could not find this property, but check our other properties.</p>
+                      <p className="mb-0">Try a different location, property type, or budget range.</p>
+                    </div>
                   </div>
-                </div>
+                  {suggestedProperties.length ? (
+                    <>
+                      <div className="col-12 pt-2">
+                        <h5 className="mb-0">Other Properties You Can Explore</h5>
+                      </div>
+                      {suggestedProperties.map((property) => (
+                        <ResultCard key={`suggested-${property.id}`} property={property} />
+                      ))}
+                    </>
+                  ) : null}
+                </>
               )}
             </div>
             <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4">
