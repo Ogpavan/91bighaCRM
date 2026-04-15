@@ -34,6 +34,32 @@ export async function GET(_request: Request, context: UploadRouteContext) {
       }
     });
   } catch {
+    const requestedPath = segments.join("/");
+    const extension = path.extname(requestedPath).toLowerCase();
+
+    if (extension && contentTypes[extension]) {
+      try {
+        const fallbackPath = path.join(
+          process.cwd(),
+          "public",
+          "assets",
+          "img",
+          "placeholders",
+          "property-fallback.png"
+        );
+        const fallbackFile = await fs.readFile(fallbackPath);
+
+        return new Response(fallbackFile, {
+          headers: {
+            "Cache-Control": "public, max-age=3600",
+            "Content-Type": "image/png"
+          }
+        });
+      } catch {
+        // fallthrough to 404
+      }
+    }
+
     return new Response("Not found", { status: 404 });
   }
 }

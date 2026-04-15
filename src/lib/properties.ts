@@ -67,6 +67,11 @@ export type ListingPriceRange = {
   maxPrice: number | null;
 };
 
+export type ListingAreaRange = {
+  minArea: number | null;
+  maxArea: number | null;
+};
+
 export type LocationLocalityOption = {
   location: string;
   localities: string[];
@@ -77,6 +82,7 @@ export type SearchPropertiesInput = {
   propertyType?: string | null;
   location?: string | null;
   locality?: string | null;
+  localities?: string[] | null;
   minPrice?: number | null;
   maxPrice?: number | null;
   bedrooms?: number | null;
@@ -391,6 +397,52 @@ export async function listLocationLocalityOptions(
     }));
 }
 
+export async function listBedBathOptions(listingType: string): Promise<{
+  bedrooms: number[];
+  bathrooms: number[];
+}> {
+  const db = await getDb();
+
+  const bedroomsResult = await db.query<{ value: number }>(
+    `
+      select distinct p.bedrooms as value
+      from properties p
+      where p.deleted_at is null
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))
+        and p.bedrooms is not null
+        and p.bedrooms > 0
+      order by p.bedrooms asc
+      limit 20
+    `,
+    [listingType]
+  );
+
+  const bathroomsResult = await db.query<{ value: number }>(
+    `
+      select distinct p.bathrooms as value
+      from properties p
+      where p.deleted_at is null
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))
+        and p.bathrooms is not null
+        and p.bathrooms > 0
+      order by p.bathrooms asc
+      limit 20
+    `,
+    [listingType]
+  );
+
+  return {
+    bedrooms: bedroomsResult.rows
+      .map((row) => Number(row.value))
+      .filter((value) => Number.isFinite(value) && value > 0),
+    bathrooms: bathroomsResult.rows
+      .map((row) => Number(row.value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  };
+}
+
 export async function listHomepageProperties(listingType: string, limit = 6) {
   const db = await getDb();
   const result = await db.query<RawHomepageProperty>(
@@ -469,11 +521,36 @@ export async function getListingPriceRange(listingType: string): Promise<Listing
   };
 }
 
+export async function getListingAreaRange(listingType: string): Promise<ListingAreaRange> {
+  const db = await getDb();
+  const result = await db.query<{ min_area: string | null; max_area: string | null }>(
+    `
+      select
+        min(p.builtup_area)::text as min_area,
+        max(p.builtup_area)::text as max_area
+      from properties p
+      where p.deleted_at is null
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))
+        and p.builtup_area is not null
+        and p.builtup_area > 0
+    `,
+    [listingType]
+  );
+
+  const row = result.rows[0];
+  return {
+    minArea: normalizeNumber(row?.min_area),
+    maxArea: normalizeNumber(row?.max_area)
+  };
+}
+
 export async function searchProperties({
   listingType,
   propertyType,
   location,
   locality,
+  localities,
   minPrice,
   maxPrice,
   bedrooms,
@@ -491,7 +568,7 @@ export async function searchProperties({
     "lower(trim(coalesce(p.status, ''))) = 'active'",
     "lower(trim(coalesce(p.listing_type, ''))) = lower(trim($1))"
   ];
-  const params: Array<string | number> = [listingType];
+  const params: Array<string | number | string[]> = [listingType];
 
   const normalizedPropertyType = propertyType?.trim();
   if (normalizedPropertyType) {
@@ -512,7 +589,17 @@ export async function searchProperties({
   }
 
   const normalizedLocality = locality?.trim();
-  if (normalizedLocality) {
+  const normalizedLocalities = (Array.isArray(localities) ? localities : [])
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase())
+    .filter((value, index, arr) => arr.indexOf(value) === index)
+    .slice(0, 25);
+
+  if (normalizedLocalities.length) {
+    params.push(normalizedLocalities);
+    filters.push(`lower(trim(coalesce(p.locality, ''))) = any($${params.length}::text[])`);
+  } else if (normalizedLocality) {
     params.push(normalizedLocality);
     filters.push(`lower(trim(coalesce(p.locality, ''))) = lower(trim($${params.length}))`);
   }
@@ -645,6 +732,50 @@ export async function listPropertyTypeCounts(limit = 6) {
   return result.rows.map((row) => ({
     name: row.name,
     slug: row.slug,
+    propertyCount: Number(row.property_count)
+  }));
+}
+
+export async function listActiveLocalitiesForFooter({
+  location = "Bareilly",
+  limit = 6
+}: {
+  location?: string | null;
+  limit?: number;
+} = {}) {
+  const db = await getDb();
+  const normalizedLocation = location?.trim() || null;
+  const resolvedLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 24) : 6;
+  const params: Array<string | number> = [];
+
+  if (normalizedLocation) {
+    params.push(normalizedLocation);
+  }
+  params.push(resolvedLimit);
+
+  const locationFilterSql = normalizedLocation
+    ? `and lower(trim(coalesce(p.city, ''))) = lower(trim($1))`
+    : "";
+
+  const result = await db.query<{ name: string; property_count: string }>(
+    `
+      select
+        min(trim(p.locality)) as name,
+        count(p.id)::text as property_count
+      from properties p
+      where p.deleted_at is null
+        and lower(trim(coalesce(p.status, ''))) = 'active'
+        and nullif(trim(p.locality), '') is not null
+        ${locationFilterSql}
+      group by lower(trim(p.locality))
+      order by count(p.id) desc, min(trim(p.locality)) asc
+      limit $${params.length}
+    `,
+    params
+  );
+
+  return result.rows.map((row) => ({
+    name: row.name,
     propertyCount: Number(row.property_count)
   }));
 }

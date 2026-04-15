@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { HomeSearchForm } from "@/components/home-search-form";
 import { HomeLivePropertiesSection } from "@/components/home-live-properties-section";
+import { HomeFaqAccordions } from "@/components/home-faq-accordions";
+import { HomeNewsletterForm } from "@/components/home-newsletter-form";
 import {
   formatPropertyAddress,
   formatPropertyArea,
@@ -167,7 +169,10 @@ export default async function HomePage() {
 						<div className="property-slider">
 							{propertyTypeCounts.length ? propertyTypeCounts.map((propertyType, index) => (
 								<div key={propertyType.slug} className="property-item">
-									<div className="property-card-item">
+									<Link
+										href={`/buy-property-grid-sidebar?${new URLSearchParams({ propertyType: propertyType.name }).toString()}`}
+										className="property-card-item d-block text-reset"
+									>
 										<div className="mb-3 text-center">
 											<img
 												src={`/assets/img/home/icons/property-icon-${(index % 4) + 1}.svg`}
@@ -177,7 +182,7 @@ export default async function HomePage() {
 										</div>
 										<h5 className="mb-1">{propertyType.name}</h5>
 										<p className="mb-0">{propertyType.propertyCount} Properties</p>
-									</div>
+									</Link>
 								</div>
 							)) : (
 								<div className="property-item">
@@ -221,6 +226,8 @@ export default async function HomePage() {
 				<div className="feature-slider-item features-slider position-none">
 					{saleProperties.length ? saleProperties.map((property, index) => {
 						const coverImage = property.coverImage?.trim() || null;
+						const fallbackImage = "/assets/img/placeholders/property-fallback.png";
+						const resolvedCoverImage = coverImage || fallbackImage;
 						const location = formatPropertyAddress(property) || "Bareilly";
 						const price = formatPropertyPrice(property);
 						const duration = 1000 + (index % 3) * 200;
@@ -232,13 +239,7 @@ export default async function HomePage() {
 										<div className="property-listing-item p-0 mb-0 shadow-none">
 											<div className="buy-grid-img mb-0 rounded-0">
 												<Link href={`/buy-details/${property.slug}`}>
-													{coverImage ? (
-														<img className="img-fluid" src={coverImage} alt={property.title} />
-													) : (
-														<div className="d-flex h-100 w-100 align-items-center justify-content-center bg-light text-muted">
-															No Image
-														</div>
-													)}
+													<img className="img-fluid" src={resolvedCoverImage} alt={property.title} />
 												</Link>
 												<div className="d-flex align-items-center justify-content-between position-absolute top-0 start-0 end-0 p-3 z-1">
 													<div className="d-flex align-items-center gap-2">
@@ -933,11 +934,15 @@ export default async function HomePage() {
 					<div className="col-lg-4 col-md-6">
 						<div className="buy-property-item text-center mb-lg-0 mb-md-0  mb-4 aos" data-aos="fade-down" data-aos-duration="1000">
 							<div className="img-card overflow-hidden text-center">
-								<a href="/buy-property-grid.html"><img src="/assets/img/home/city/property-img-1.jpg" alt="Property Image" /></a>
+								<Link href="/buy-property-grid-sidebar">
+									<img src="/assets/img/home/city/property-img-1.jpg" alt="Buy a Property" />
+								</Link>
 							</div>
 							<div className="buy-property bg-white d-flex align-items-center justify-content-between">
-								<h6 className="mb-0"><a href="/buy-property-grid.html">Buy a Property</a></h6>
-								<a href="/buy-property-grid.html" className="arrow buy-arrow d-flex align-items-center justify-content-center bg-error rounded-circle"><i className='fa-solid fa-arrow-right'></i></a>
+								<h6 className="mb-0"><Link href="/buy-property-grid-sidebar">Buy a Property</Link></h6>
+								<Link href="/buy-property-grid-sidebar" className="arrow buy-arrow d-flex align-items-center justify-content-center bg-error rounded-circle" aria-label="Browse buy listings">
+									<i className='fa-solid fa-arrow-right'></i>
+								</Link>
 							</div>
 						</div>
 					</div>
@@ -946,11 +951,15 @@ export default async function HomePage() {
 					<div className="col-lg-4 col-md-6" >
 						<div className="buy-property-item mb-lg-0 mb-4 text-center aos" data-aos="fade-up" data-aos-duration="1000">
 							<div className="img-card overflow-hidden text-center">
-								<a href="/rent-property-grid.html"><img src="/assets/img/home/city/property-img-2.jpg" alt="Property Image" /></a>
+								<Link href="/contact-us">
+									<img src="/assets/img/home/city/property-img-2.jpg" alt="Sell a Property" />
+								</Link>
 							</div>
 							<div className="buy-property bg-white d-flex align-items-center justify-content-between">
-								<h6 className="mb-0"><a href="/rent-property-grid.html">Sell a Property</a></h6>
-								<a href="/rent-property-grid.html" className="arrow sell-arrow d-flex align-items-center justify-content-center bg-warning rounded-circle"><i className='fa-solid fa-arrow-right'></i></a>
+								<h6 className="mb-0"><Link href="/contact-us">Sell a Property</Link></h6>
+								<Link href="/contact-us" className="arrow sell-arrow d-flex align-items-center justify-content-center bg-warning rounded-circle" aria-label="Contact to sell a property">
+									<i className='fa-solid fa-arrow-right'></i>
+								</Link>
 							</div>
 						</div>
 					</div>
@@ -959,11 +968,15 @@ export default async function HomePage() {
 					<div className="col-lg-4 col-md-6" >
 						<div className="buy-property-item mb-0 text-center aos" data-aos="fade-down" data-aos-duration="1000">
 							<div className="img-card overflow-hidden text-center">
-								<a href="/rent-property-grid.html"><img src="/assets/img/home/city/property-img-3.jpg" alt="Property Image" /></a>
+								<Link href="/rent-property-grid-sidebar">
+									<img src="/assets/img/home/city/property-img-3.jpg" alt="Rent a Property" />
+								</Link>
 							</div>
 							<div className="buy-property bg-white d-flex align-items-center justify-content-between">
-								<h6 className="mb-0"><a href="/rent-property-grid.html">Rent a Property</a></h6>
-								<a href="/rent-property-grid.html" className="arrow rent-arrow d-flex align-items-center justify-content-center bg-info rounded-circle"><i className='fa-solid fa-arrow-right'></i></a>
+								<h6 className="mb-0"><Link href="/rent-property-grid-sidebar">Rent a Property</Link></h6>
+								<Link href="/rent-property-grid-sidebar" className="arrow rent-arrow d-flex align-items-center justify-content-center bg-info rounded-circle" aria-label="Browse rent listings">
+									<i className='fa-solid fa-arrow-right'></i>
+								</Link>
 							</div>
 						</div>
 					</div>
@@ -1158,102 +1171,7 @@ export default async function HomePage() {
 						
 						<div className="card mb-0">
 							<div className="card-body">
-								<div>
-									<h5 className="mb-4"> General FAQ’s </h5>
-									<div className="accordion accordions-items-seperate faq-accordion m-0" id="faq-accordion">
-
-										
-										<div className="accordion-item">
-											<div className="accordion-header aos" data-aos="fade-down" data-aos-duration="1000">
-												<button className="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-1" aria-expanded="true">
-													What is real estate?
-												</button>
-											</div>
-											<div id="accordion-1" className="accordion-collapse collapse show" data-bs-parent="#faq-accordion">
-												<div className="accordion-body">
-													<p className="mb-0">Real estate refers to land and any permanent structures on it, such as homes or buildings.</p>
-												</div>
-											</div>
-										</div>
-
-										
-										<div className="accordion-item aos" data-aos="fade-down" data-aos-duration="1000">
-											<div className="accordion-header">
-												<button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-2" aria-expanded="false">
-													What types of properties are included in real estate?
-												</button>
-											</div>
-											<div id="accordion-2" className="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-												<div className="accordion-body">
-													<p className="mb-0">Real estate includes residential, commercial, industrial, land, and special-purpose properties.</p>
-												</div>
-											</div>
-										</div>
-
-										
-										<div className="accordion-item aos" data-aos="fade-down" data-aos-duration="1000">
-											<div className="accordion-header">
-												<button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-3" aria-expanded="false">
-													What is the role of a real estate agent?
-												</button>
-											</div>
-											<div id="accordion-3" className="accordion-collapse collapse" data-bs-parent="#faq-accordion">
-												<div className="accordion-body">
-													<p className="mb-0">A real estate agent assists clients in buying, selling, or renting properties by guiding them through the process.</p>
-												</div>
-											</div>
-										</div>
-										
-									</div>
-								</div>
-								<div>
-									<h5 className="mb-4 mt-4"> Buying FAQ’s </h5>
-									<div className="accordion accordions-items-seperate faq-accordion m-0" id="faq-accordion1">
-
-										
-										<div className="accordion-item aos" data-aos="fade-down" data-aos-duration="1000">
-											<div className="accordion-header">
-												<button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-4" aria-expanded="true">
-													How do I start the home-buying process?
-												</button>
-											</div>
-											<div id="accordion-4" className="accordion-collapse collapse" data-bs-parent="#faq-accordion1">
-												<div className="accordion-body">
-													<p className="mb-0">Start the home-buying process by checking your budget, getting pre approved for a mortgage, and consulting a real estate agent.</p>
-												</div>
-											</div>
-										</div>
-										
-										
-										<div className="accordion-item aos" data-aos="fade-down" data-aos-duration="1000">
-											<div className="accordion-header">
-												<button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-5" aria-expanded="false">
-													How much down payment do I need?
-												</button>
-											</div>
-											<div id="accordion-5" className="accordion-collapse collapse" data-bs-parent="#faq-accordion1">
-												<div className="accordion-body">
-													<p className="mb-0">The down payment typically ranges from 3% to 20% of the home's price, depending on the loan type and lender requirements.</p>
-												</div>
-											</div>
-										</div>
-
-										
-										<div className="accordion-item aos" data-aos="fade-down" data-aos-duration="1000">
-											<div className="accordion-header">
-												<button className="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-6" aria-expanded="false">
-													What is a home inspection?
-												</button>
-											</div>
-											<div id="accordion-6" className="accordion-collapse collapse" data-bs-parent="#faq-accordion1">
-												<div className="accordion-body">
-													<p className="mb-0">A home inspection is a professional evaluation of a property's condition to identify any issues before finalizing the purchase.</p>
-												</div>
-											</div>
-										</div>
-
-									</div>
-								</div>
+								<HomeFaqAccordions />
 							</div>
 						</div>
 
@@ -1284,7 +1202,11 @@ export default async function HomePage() {
 					</div>
 					<div className="col-lg-5 position-relative z-1 aos" data-aos="zoom-in" data-aos-duration="1500">
 						<div className="text-lg-end text-center ">
-							<a href="" className="btn btn-xl btn-primary"> Register Now </a>
+							<a href="tel:+917302166711" className="btn btn-xl btn-primary d-inline-flex align-items-center gap-2">
+								<i className="material-icons-outlined">call</i>
+								<span>Call Now</span>
+								<span>+91 7302166711</span>
+							</a>
 						</div>
 					</div>
 				</div>
@@ -1318,15 +1240,7 @@ export default async function HomePage() {
 					</div> 
 
 					<div className="col-lg-6 aos" data-aos="fade-down" data-aos-duration="1500">
-						<div className="d-flex align-items-center justify-content-between gap-2">
-							<div className="position-relative support-custom-icons">
-								<div className="input-group input-group-flat">
-									<input type="text" className="form-control bg-white w-100" placeholder="Enter Email Address" /> 
-								</div>
-								<i className="material-icons-outlined text-dark z-2">email</i>
-							</div>
-							<a href="" className="btn btn-lg btn-primary"> Subscribe</a>
-						</div>
+						<HomeNewsletterForm />
 					</div> 
 
 				</div>

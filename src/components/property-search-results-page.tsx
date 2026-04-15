@@ -1,5 +1,11 @@
 import Link from "next/link";
-import type { HomepageProperty, PropertyTypeOption } from "@/lib/properties";
+import type {
+  HomepageProperty,
+  ListingAreaRange,
+  ListingPriceRange,
+  LocationLocalityOption,
+  PropertyTypeOption
+} from "@/lib/properties";
 import {
   formatPropertyAddress,
   formatPropertyArea,
@@ -12,10 +18,21 @@ type PropertySearchResultsPageProps = {
   properties: HomepageProperty[];
   suggestedProperties?: HomepageProperty[];
   propertyTypeOptions: PropertyTypeOption[];
+  locationLocalityOptions?: LocationLocalityOption[];
+  bedBathOptions?: {
+    bedrooms: number[];
+    bathrooms: number[];
+  };
+  priceRange?: ListingPriceRange;
+  areaRange?: ListingAreaRange;
+  filterNotices?: {
+    priceWasSwapped?: boolean;
+    areaWasSwapped?: boolean;
+  };
   filters: {
     propertyType?: string | null;
     location?: string | null;
-    locality?: string | null;
+    localities?: string[] | null;
     minPrice?: number | null;
     maxPrice?: number | null;
     bedrooms?: number | null;
@@ -41,6 +58,136 @@ function formatMoney(value: number | null | undefined) {
     currency: "INR",
     maximumFractionDigits: 0
   }).format(value);
+}
+
+function formatBudgetLabel(listingType: "sale" | "rent", amount: number) {
+  if (listingType === "rent") {
+    if (amount >= 100000) {
+      const lakhs = amount / 100000;
+      const label = Number.isInteger(lakhs) ? String(lakhs) : lakhs.toFixed(1).replace(/\.0$/, "");
+      return `${label} Lakh`;
+    }
+
+    if (amount >= 1000) {
+      return `${Math.round(amount / 1000)}k`;
+    }
+
+    return String(amount);
+  }
+
+  if (amount < 10000000) {
+    return `${Math.round(amount / 100000)} Lacs`;
+  }
+
+  const crores = amount / 10000000;
+  if (crores === 1) {
+    return "1 Crore";
+  }
+
+  const croresLabel = Number.isInteger(crores)
+    ? String(crores)
+    : crores.toFixed(crores < 2 ? 2 : 1).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+  return `${croresLabel} Crores`;
+}
+
+function roundToStepUp(value: number, step: number) {
+  return Math.ceil(value / step) * step;
+}
+
+function buildBudgetOptions(
+  listingType: "sale" | "rent",
+  minPrice: number | null,
+  maxPrice: number | null
+) {
+  const min =
+    typeof minPrice === "number" && Number.isFinite(minPrice) && minPrice > 0
+      ? minPrice
+      : 0;
+  const max =
+    typeof maxPrice === "number" && Number.isFinite(maxPrice) && maxPrice > 0
+      ? maxPrice
+      : null;
+
+  if (!max) {
+    return [];
+  }
+
+  const values = new Set<number>();
+
+  if (listingType === "sale") {
+    const step1 = 500000; // 5L
+    const step2 = 1000000; // 10L
+    const step3 = 100000000; // 10Cr
+
+    const start1 = Math.max(step1, roundToStepUp(min, step1));
+    const limit1 = Math.min(max, 20000000); // up to 2 Cr in 5L steps
+    for (let v = start1; v <= limit1; v += step1) {
+      values.add(v);
+    }
+
+    if (max > 20000000) {
+      const start2 = Math.max(21000000, roundToStepUp(min, step2));
+      const limit2 = Math.min(max, 100000000); // 10 Cr in 10L steps
+      for (let v = start2; v <= limit2; v += step2) {
+        values.add(v);
+      }
+    }
+
+    if (max > 100000000) {
+      const start3 = Math.max(200000000, roundToStepUp(min, step3));
+      const limit3 = Math.min(max, 1000000000); // 100 Cr in 10Cr steps
+      for (let v = start3; v <= limit3; v += step3) {
+        values.add(v);
+      }
+    }
+  } else {
+    const step1 = 5000;
+    const step2 = 10000;
+    const cappedMax = Math.min(max, 500000); // cap at 5L
+
+    const start1 = Math.max(step1, roundToStepUp(min, step1));
+    for (let v = start1; v <= Math.min(cappedMax, 100000); v += step1) {
+      values.add(v);
+    }
+
+    const start2 = Math.max(110000, roundToStepUp(min, step2));
+    for (let v = start2; v <= cappedMax; v += step2) {
+      values.add(v);
+    }
+  }
+
+  return Array.from(values).sort((a, b) => a - b);
+}
+
+function roundDownToStep(value: number, step: number) {
+  return Math.floor(value / step) * step;
+}
+
+function roundUpToStep(value: number, step: number) {
+  return Math.ceil(value / step) * step;
+}
+
+function buildAreaOptions(minArea: number, maxArea: number, step: number) {
+  const resolvedMin = Number.isFinite(minArea) ? minArea : 0;
+  const resolvedMax = Number.isFinite(maxArea) ? maxArea : 0;
+  if (resolvedMax <= 0 || resolvedMax < resolvedMin) {
+    return [];
+  }
+
+  const maxOptions = 120;
+  const values: number[] = [];
+  for (let value = resolvedMin; value <= resolvedMax; value += step) {
+    values.push(value);
+    if (values.length >= maxOptions) {
+      break;
+    }
+  }
+
+  if (values.length && values[values.length - 1] !== resolvedMax) {
+    values.push(resolvedMax);
+  }
+
+  return values;
 }
 
 function ResultCard({ property }: { property: HomepageProperty }) {
@@ -122,28 +269,30 @@ export function PropertySearchResultsPage({
   properties,
   suggestedProperties = [],
   propertyTypeOptions,
+  locationLocalityOptions = [],
+  bedBathOptions = { bedrooms: [], bathrooms: [] },
+  priceRange = { minPrice: null, maxPrice: null },
+  areaRange = { minArea: null, maxArea: null },
+  filterNotices,
   filters,
   pagination
 }: PropertySearchResultsPageProps) {
   const pageTitle = listingType === "rent" ? "Rent Search Results" : "Buy Search Results";
   const emptyTitle = listingType === "rent" ? "No rental properties matched your search." : "No sale properties matched your search.";
   const gridHref = listingType === "rent" ? "/rent-property-grid-sidebar" : "/buy-property-grid-sidebar";
-  const propertyTypesFromListings = Array.from(
-    new Set(
-      properties
-        .map((property) => property.propertyType?.trim())
-        .filter((value): value is string => Boolean(value))
-    )
-  ).sort((a, b) => a.localeCompare(b));
-
-  const resolvedPropertyTypeOptions = (propertyTypesFromListings.length
-    ? propertyTypesFromListings
-    : propertyTypeOptions.map((option) => option.name)
-  ).map((name, index) => ({
-    id: index + 1,
-    name,
-    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
-  }));
+  const propertyTypesFromApi = propertyTypeOptions
+    .map((option) => option.name?.trim())
+    .filter((value): value is string => Boolean(value));
+  const propertyTypesFromListings = properties
+    .map((property) => property.propertyType?.trim())
+    .filter((value): value is string => Boolean(value));
+  const resolvedPropertyTypeOptions = Array.from(new Set([...propertyTypesFromApi, ...propertyTypesFromListings]))
+    .sort((a, b) => a.localeCompare(b))
+    .map((name, index) => ({
+      id: index + 1,
+      name,
+      slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
+    }));
 
   if (
     filters.propertyType &&
@@ -159,45 +308,60 @@ export function PropertySearchResultsPage({
     });
   }
 
-  const locationOptions = Array.from(
-    new Set(
-      properties
-        .map((property) => property.city?.trim() || "")
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  const locationOptionsFromApi = locationLocalityOptions
+    .map((option) => option.location?.trim())
+    .filter((value): value is string => Boolean(value));
+  const locationOptionsFromListings = properties
+    .map((property) => property.city?.trim() || "")
+    .filter(Boolean);
+  const locationOptions = Array.from(new Set([...locationOptionsFromApi, ...locationOptionsFromListings]))
+    .sort((a, b) => a.localeCompare(b));
 
   if (filters.location && !locationOptions.some((option) => option === filters.location)) {
     locationOptions.unshift(filters.location);
   }
 
-  const localityOptions = Array.from(
-    new Set(
-      properties
-        .map((property) => property.locality?.trim() || "")
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  const selectedLocalities = Array.isArray(filters.localities) ? filters.localities : [];
+  const localitiesForSelectedLocation = filters.location
+    ? locationLocalityOptions.find((option) => option.location === filters.location)?.localities ?? []
+    : [];
+  const localityOptionsFromApi = (filters.location ? localitiesForSelectedLocation : locationLocalityOptions.flatMap((option) => option.localities))
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+  const localityOptionsFromListings = properties
+    .map((property) => property.locality?.trim() || "")
+    .filter(Boolean);
+  const localityCollator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+  const isNumericLocality = (value: string) => /^\s*\d/.test(value);
+  const localityOptionsOrdered = Array.from(
+    new Set([...selectedLocalities, ...localityOptionsFromApi, ...localityOptionsFromListings])
+  )
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aNumeric = isNumericLocality(a);
+      const bNumeric = isNumericLocality(b);
 
-  if (filters.locality && !localityOptions.some((option) => option === filters.locality)) {
-    localityOptions.unshift(filters.locality);
-  }
+      if (aNumeric !== bNumeric) {
+        return aNumeric ? 1 : -1;
+      }
 
-  const bedroomsOptions = Array.from(
-    new Set(
-      properties
-        .map((property) => property.bedrooms)
-        .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0)
-    )
-  ).sort((a, b) => a - b);
+      return localityCollator.compare(a, b);
+    });
+  const selectedLocalitiesSet = new Set(selectedLocalities);
+  const mainLocalities = [
+    ...selectedLocalities,
+    ...localityOptionsOrdered.filter((locality) => !selectedLocalitiesSet.has(locality))
+  ].slice(0, 4);
+  const modalLocalities = localityOptionsOrdered.filter((locality) => !mainLocalities.includes(locality));
+  const localitiesModalId = `${listingType}-localities-modal`;
 
-  const bathroomsOptions = Array.from(
-    new Set(
-      properties
-        .map((property) => property.bathrooms)
-        .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0)
-    )
-  ).sort((a, b) => a - b);
+  const bedroomsOptions = Array.from(new Set(bedBathOptions.bedrooms))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+
+  const bathroomsOptions = Array.from(new Set(bedBathOptions.bathrooms))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
 
   if (typeof filters.bedrooms === "number" && !bedroomsOptions.includes(filters.bedrooms)) {
     bedroomsOptions.push(filters.bedrooms);
@@ -208,10 +372,16 @@ export function PropertySearchResultsPage({
     bathroomsOptions.push(filters.bathrooms);
     bathroomsOptions.sort((a, b) => a - b);
   }
+
+  const maxPillsVisible = 5;
+  const visibleBedrooms = bedroomsOptions.slice(0, maxPillsVisible);
+  const extraBedrooms = bedroomsOptions.slice(maxPillsVisible);
+  const visibleBathrooms = bathroomsOptions.slice(0, maxPillsVisible);
+  const extraBathrooms = bathroomsOptions.slice(maxPillsVisible);
   const chips = [
     filters.propertyType ? `Type: ${filters.propertyType}` : null,
     filters.location ? `Location: ${filters.location}` : null,
-    filters.locality ? `Locality: ${filters.locality}` : null,
+    selectedLocalities.length ? `Localities: ${selectedLocalities.join(", ")}` : null,
     filters.minPrice ? `Min: ${formatMoney(filters.minPrice)}` : null,
     filters.maxPrice ? `Max: ${formatMoney(filters.maxPrice)}` : null,
     filters.bedrooms ? `Beds: ${filters.bedrooms}+` : null,
@@ -222,6 +392,41 @@ export function PropertySearchResultsPage({
   const startItem = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
   const endItem = pagination.total === 0 ? 0 : Math.min(pagination.page * pagination.pageSize, pagination.total);
 
+  const areaStep = 100;
+  const hasAreaRange =
+    typeof areaRange.minArea === "number" &&
+    Number.isFinite(areaRange.minArea) &&
+    typeof areaRange.maxArea === "number" &&
+    Number.isFinite(areaRange.maxArea) &&
+    areaRange.maxArea > 0;
+  const areaMin = hasAreaRange ? roundDownToStep(Math.max(areaRange.minArea ?? 0, 0), areaStep) : 0;
+  const areaMax = hasAreaRange
+    ? roundUpToStep(Math.max(areaRange.maxArea ?? 0, areaMin + areaStep), areaStep)
+    : 0;
+  const areaFrom = hasAreaRange
+    ? roundDownToStep(Math.min(Math.max(filters.minArea ?? areaMin, areaMin), areaMax), areaStep)
+    : 0;
+  const areaTo = hasAreaRange
+    ? roundUpToStep(Math.min(Math.max(filters.maxArea ?? areaMax, areaMin), areaMax), areaStep)
+    : 0;
+  const areaOptions = hasAreaRange ? buildAreaOptions(areaMin, areaMax, areaStep) : [];
+
+  const budgetOptions = buildBudgetOptions(listingType, priceRange.minPrice, priceRange.maxPrice);
+
+  const minAreaOptions = (typeof filters.maxArea === "number" && Number.isFinite(filters.maxArea))
+    ? areaOptions.filter((value) => value <= filters.maxArea!)
+    : areaOptions;
+  const maxAreaOptions = (typeof filters.minArea === "number" && Number.isFinite(filters.minArea))
+    ? areaOptions.filter((value) => value >= filters.minArea!)
+    : areaOptions;
+
+  const minBudgetOptions = (typeof filters.maxPrice === "number" && Number.isFinite(filters.maxPrice))
+    ? budgetOptions.filter((value) => value <= filters.maxPrice!)
+    : budgetOptions;
+  const maxBudgetOptions = (typeof filters.minPrice === "number" && Number.isFinite(filters.minPrice))
+    ? budgetOptions.filter((value) => value >= filters.minPrice!)
+    : budgetOptions;
+
   const buildPageHref = (pageNumber: number) => {
     const params = new URLSearchParams();
 
@@ -231,8 +436,8 @@ export function PropertySearchResultsPage({
     if (filters.location) {
       params.set("location", filters.location);
     }
-    if (filters.locality) {
-      params.set("locality", filters.locality);
+    if (selectedLocalities.length) {
+      selectedLocalities.forEach((locality) => params.append("locality", locality));
     }
     if (typeof filters.minPrice === "number") {
       params.set("minPrice", String(filters.minPrice));
@@ -286,6 +491,17 @@ export function PropertySearchResultsPage({
                   </Link>
                 </div>
                 <div className="filter-body">
+                  {filterNotices?.priceWasSwapped || filterNotices?.areaWasSwapped ? (
+                    <div className="alert alert-warning py-2 px-3 mb-3">
+                      We adjusted your{" "}
+                      {filterNotices?.priceWasSwapped && filterNotices?.areaWasSwapped
+                        ? "budget and area"
+                        : filterNotices?.priceWasSwapped
+                          ? "budget"
+                          : "area"}{" "}
+                      range to keep Min ≤ Max.
+                    </div>
+                  ) : null}
                   <div className="filter-set">
                     <div className="d-flex align-items-center">
                       <div
@@ -325,36 +541,210 @@ export function PropertySearchResultsPage({
                       </div>
                       <div className="mb-2">
                         <label className="form-label mb-1">Locality</label>
-                        <select name="locality" className="form-select" defaultValue={filters.locality ?? ""}>
-                          <option value="">All Localities</option>
-                          {localityOptions.map((locality) => (
-                            <option key={locality} value={locality}>
-                              {locality}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="d-flex flex-column gap-2">
+                          {mainLocalities.map((locality) => {
+                            const id = `locality-${locality.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+                            return (
+                              <div key={locality} className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  name="locality"
+                                  id={id}
+                                  value={locality}
+                                  defaultChecked={selectedLocalities.includes(locality)}
+                                />
+                                <label className="form-check-label" htmlFor={id}>
+                                  {locality}
+                                </label>
+                              </div>
+                            );
+                          })}
+
+                          {modalLocalities.length ? (
+                            <button
+                              type="button"
+                              className="btn btn-link p-0 text-primary small d-inline-flex align-items-center gap-1 text-start"
+                              data-bs-toggle="modal"
+                              data-bs-target={`#${localitiesModalId}`}
+                            >
+                              <i className="material-icons-outlined" aria-hidden="true">search</i>
+                              <span>More Localities</span>
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
+
+                      {modalLocalities.length ? (
+                        <div
+                          className="modal fade"
+                          id={localitiesModalId}
+                          tabIndex={-1}
+                          aria-hidden="true"
+                          aria-labelledby={`${localitiesModalId}-title`}
+                        >
+                          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+                            <div className="modal-content">
+                              <div className="modal-header">
+                                <h5 className="modal-title" id={`${localitiesModalId}-title`}>
+                                  Select Localities
+                                </h5>
+                                <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                              </div>
+                              <div className="modal-body">
+                                <div className="row g-2">
+                                  {modalLocalities.map((locality) => {
+                                    const id = `locality-modal-${locality.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+                                    return (
+                                      <div key={locality} className="col-6 col-md-3">
+                                        <div className="form-check">
+                                          <input
+                                            className="form-check-input"
+                                            type="checkbox"
+                                            name="locality"
+                                            id={id}
+                                            value={locality}
+                                            defaultChecked={selectedLocalities.includes(locality)}
+                                          />
+                                          <label className="form-check-label" htmlFor={id}>
+                                            {locality}
+                                          </label>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <div className="modal-footer">
+                                <button type="button" className="btn btn-dark" data-bs-dismiss="modal">
+                                  Done
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="mb-2">
                         <label className="form-label mb-1">No of Bedrooms</label>
-                        <select name="bedrooms" className="form-select" defaultValue={String(filters.bedrooms ?? "")}>
-                          <option value="">Any</option>
-                          {(bedroomsOptions.length ? bedroomsOptions : [1, 2, 3, 4, 5]).map((value) => (
-                            <option key={value} value={value}>
-                              {value}+
-                            </option>
-                          ))}
-                        </select>
+                        <div className="d-flex flex-wrap gap-2">
+                          <input
+                            type="radio"
+                            className="btn-check"
+                            name="bedrooms"
+                            id={`bedrooms-any-${listingType}`}
+                            value=""
+                            defaultChecked={!filters.bedrooms}
+                          />
+                          <label className="btn btn-sm btn-outline-dark rounded-pill" htmlFor={`bedrooms-any-${listingType}`}>
+                            Any
+                          </label>
+                          {visibleBedrooms.map((value) => {
+                            const id = `bedrooms-${listingType}-${value}`;
+                            return (
+                              <span key={value}>
+                                <input
+                                  type="radio"
+                                  className="btn-check"
+                                  name="bedrooms"
+                                  id={id}
+                                  value={String(value)}
+                                  defaultChecked={filters.bedrooms === value}
+                                />
+                                <label className="btn btn-sm btn-outline-dark rounded-pill" htmlFor={id}>
+                                  {value}+
+                                </label>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {extraBedrooms.length ? (
+                          <details className="mt-2">
+                            <summary className="text-primary small" style={{ cursor: "pointer" }}>
+                              More
+                            </summary>
+                            <div className="d-flex flex-wrap gap-2 mt-2">
+                              {extraBedrooms.map((value) => {
+                                const id = `bedrooms-${listingType}-${value}`;
+                                return (
+                                  <span key={value}>
+                                    <input
+                                      type="radio"
+                                      className="btn-check"
+                                      name="bedrooms"
+                                      id={id}
+                                      value={String(value)}
+                                      defaultChecked={filters.bedrooms === value}
+                                    />
+                                    <label className="btn btn-sm btn-outline-dark rounded-pill" htmlFor={id}>
+                                      {value}+
+                                    </label>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </details>
+                        ) : null}
                       </div>
                       <div>
                         <label className="form-label mb-1">No of Bathrooms</label>
-                        <select name="bathrooms" className="form-select" defaultValue={String(filters.bathrooms ?? "")}>
-                          <option value="">Any</option>
-                          {(bathroomsOptions.length ? bathroomsOptions : [1, 2, 3, 4]).map((value) => (
-                            <option key={value} value={value}>
-                              {value}+
-                            </option>
-                          ))}
-                        </select>
+                        <div className="d-flex flex-wrap gap-2">
+                          <input
+                            type="radio"
+                            className="btn-check"
+                            name="bathrooms"
+                            id={`bathrooms-any-${listingType}`}
+                            value=""
+                            defaultChecked={!filters.bathrooms}
+                          />
+                          <label className="btn btn-sm btn-outline-dark rounded-pill" htmlFor={`bathrooms-any-${listingType}`}>
+                            Any
+                          </label>
+                          {visibleBathrooms.map((value) => {
+                            const id = `bathrooms-${listingType}-${value}`;
+                            return (
+                              <span key={value}>
+                                <input
+                                  type="radio"
+                                  className="btn-check"
+                                  name="bathrooms"
+                                  id={id}
+                                  value={String(value)}
+                                  defaultChecked={filters.bathrooms === value}
+                                />
+                                <label className="btn btn-sm btn-outline-dark rounded-pill" htmlFor={id}>
+                                  {value}+
+                                </label>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {extraBathrooms.length ? (
+                          <details className="mt-2">
+                            <summary className="text-primary small" style={{ cursor: "pointer" }}>
+                              More
+                            </summary>
+                            <div className="d-flex flex-wrap gap-2 mt-2">
+                              {extraBathrooms.map((value) => {
+                                const id = `bathrooms-${listingType}-${value}`;
+                                return (
+                                  <span key={value}>
+                                    <input
+                                      type="radio"
+                                      className="btn-check"
+                                      name="bathrooms"
+                                      id={id}
+                                      value={String(value)}
+                                      defaultChecked={filters.bathrooms === value}
+                                    />
+                                    <label className="btn btn-sm btn-outline-dark rounded-pill" htmlFor={id}>
+                                      {value}+
+                                    </label>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </details>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -374,28 +764,33 @@ export function PropertySearchResultsPage({
                       </div>
                     </div>
                     <div className="mt-3">
-                      <div className="mb-2">
-                        <label className="form-label mb-1">Min Sqft</label>
-                        <input
-                          type="number"
-                          name="minArea"
-                          min="0"
-                          className="form-control"
-                          placeholder="e.g. 500"
-                          defaultValue={filters.minArea ?? ""}
-                        />
-                      </div>
-                      <div>
-                        <label className="form-label mb-1">Max Sqft</label>
-                        <input
-                          type="number"
-                          name="maxArea"
-                          min="0"
-                          className="form-control"
-                          placeholder="e.g. 3000"
-                          defaultValue={filters.maxArea ?? ""}
-                        />
-                      </div>
+                      <label className="form-label mb-2">Built-up Area (sqft)</label>
+                      {hasAreaRange ? (
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <select name="minArea" className="form-select" defaultValue={filters.minArea ? String(filters.minArea) : ""}>
+                              <option value="">No min</option>
+                              {minAreaOptions.map((value) => (
+                                <option key={`min-area-${value}`} value={String(value)}>
+                                  {value} sqft
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-6">
+                            <select name="maxArea" className="form-select" defaultValue={filters.maxArea ? String(filters.maxArea) : ""}>
+                              <option value="">No max</option>
+                              {maxAreaOptions.map((value) => (
+                                <option key={`max-area-${value}`} value={String(value)}>
+                                  {value} sqft
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-muted small">Area range is not available for these listings.</div>
+                      )}
                     </div>
                   </div>
 
@@ -414,31 +809,28 @@ export function PropertySearchResultsPage({
                       </div>
                     </div>
                     <div className="mt-3">
-                      <div className="mb-2">
-                        <label className="form-label mb-1">
-                          {listingType === "rent" ? "Min Rent" : "Min Budget"}
-                        </label>
-                        <input
-                          type="number"
-                          name="minPrice"
-                          min="0"
-                          step={listingType === "rent" ? 1000 : 100000}
-                          className="form-control"
-                          defaultValue={filters.minPrice ?? ""}
-                        />
-                      </div>
-                      <div>
-                        <label className="form-label mb-1">
-                          {listingType === "rent" ? "Max Rent" : "Max Budget"}
-                        </label>
-                        <input
-                          type="number"
-                          name="maxPrice"
-                          min="0"
-                          step={listingType === "rent" ? 1000 : 100000}
-                          className="form-control"
-                          defaultValue={filters.maxPrice ?? ""}
-                        />
+                      <label className="form-label mb-2">{listingType === "rent" ? "Rent" : "Budget"}</label>
+                      <div className="row g-2">
+                        <div className="col-6">
+                          <select name="minPrice" className="form-select" defaultValue={filters.minPrice ? String(filters.minPrice) : ""}>
+                            <option value="">{listingType === "rent" ? "No min" : "No min"}</option>
+                            {minBudgetOptions.map((value) => (
+                              <option key={`min-${value}`} value={String(value)}>
+                                {formatBudgetLabel(listingType, value)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-6">
+                          <select name="maxPrice" className="form-select" defaultValue={filters.maxPrice ? String(filters.maxPrice) : ""}>
+                            <option value="">{listingType === "rent" ? "No max" : "No max"}</option>
+                            {maxBudgetOptions.map((value) => (
+                              <option key={`max-${value}`} value={String(value)}>
+                                {formatBudgetLabel(listingType, value)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>

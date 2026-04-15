@@ -1,11 +1,11 @@
 import { PropertySearchResultsPage } from "@/components/property-search-results-page";
-import { getListingPriceRange, getPropertyTypeOptions, searchProperties } from "@/lib/properties";
+import { getListingAreaRange, getListingPriceRange, getPropertyTypeOptions, listBedBathOptions, listLocationLocalityOptions, searchProperties } from "@/lib/properties";
 
 type BuyPropertyGridSidebarPageProps = {
   searchParams: Promise<{
     propertyType?: string;
     location?: string;
-    locality?: string;
+    locality?: string | string[];
     minPrice?: string;
     maxPrice?: string;
     bedrooms?: string;
@@ -85,6 +85,16 @@ function clampToRange(value: number | null, minValue: number | null, maxValue: n
   return nextValue;
 }
 
+function parseLocalities(value?: string | string[]) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  const normalized = values
+    .flatMap((entry) => String(entry).split(","))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return normalized.length ? Array.from(new Set(normalized)).slice(0, 25) : null;
+}
+
 export const dynamic = "force-dynamic";
 
 export default async function BuyPropertyGridSidebarPage({
@@ -93,25 +103,44 @@ export default async function BuyPropertyGridSidebarPage({
   const pageSize = 20;
   const params = await searchParams;
   const page = parsePage(params.page);
+  const rawMinPrice = parseAmount(params.minPrice);
+  const rawMaxPrice = parseAmount(params.maxPrice);
   const normalizedPrices = normalizePriceRange(
-    parseAmount(params.minPrice),
-    parseAmount(params.maxPrice)
+    rawMinPrice,
+    rawMaxPrice
   );
+  const priceWasSwapped =
+    typeof rawMinPrice === "number" &&
+    typeof rawMaxPrice === "number" &&
+    Number.isFinite(rawMinPrice) &&
+    Number.isFinite(rawMaxPrice) &&
+    rawMinPrice > rawMaxPrice;
+
+  const rawMinArea = parseInteger(params.minArea);
+  const rawMaxArea = parseInteger(params.maxArea);
   const normalizedArea = normalizeRange(
-    parseInteger(params.minArea),
-    parseInteger(params.maxArea)
+    rawMinArea,
+    rawMaxArea
   );
+  const areaWasSwapped =
+    typeof rawMinArea === "number" &&
+    typeof rawMaxArea === "number" &&
+    Number.isFinite(rawMinArea) &&
+    Number.isFinite(rawMaxArea) &&
+    rawMinArea > rawMaxArea;
   const priceRange = await getListingPriceRange("sale");
+  const areaRange = await getListingAreaRange("sale");
+  const selectedLocalities = parseLocalities(params.locality);
   const filters = {
     propertyType: params.propertyType?.trim() || null,
     location: params.location?.trim() || null,
-    locality: params.locality?.trim() || null,
+    localities: selectedLocalities,
     minPrice: clampToRange(normalizedPrices.minPrice, priceRange.minPrice, priceRange.maxPrice),
     maxPrice: clampToRange(normalizedPrices.maxPrice, priceRange.minPrice, priceRange.maxPrice),
     bedrooms: parseInteger(params.bedrooms),
     bathrooms: parseInteger(params.bathrooms),
-    minArea: normalizedArea.minValue,
-    maxArea: normalizedArea.maxValue
+    minArea: clampToRange(normalizedArea.minValue, areaRange.minArea, areaRange.maxArea),
+    maxArea: clampToRange(normalizedArea.maxValue, areaRange.minArea, areaRange.maxArea)
   };
 
   const result = await searchProperties({
@@ -121,6 +150,8 @@ export default async function BuyPropertyGridSidebarPage({
     ...filters
   });
   const propertyTypeOptions = await getPropertyTypeOptions("sale");
+  const locationLocalityOptions = await listLocationLocalityOptions("sale");
+  const bedBathOptions = await listBedBathOptions("sale");
   const suggestedResult = result.total === 0
     ? await searchProperties({ listingType: "sale", page: 1, limit: 4 })
     : null;
@@ -132,6 +163,14 @@ export default async function BuyPropertyGridSidebarPage({
       properties={result.items}
       suggestedProperties={suggestedProperties}
       propertyTypeOptions={propertyTypeOptions}
+      locationLocalityOptions={locationLocalityOptions}
+      bedBathOptions={bedBathOptions}
+      priceRange={priceRange}
+      areaRange={areaRange}
+      filterNotices={{
+        priceWasSwapped,
+        areaWasSwapped
+      }}
       filters={filters}
       pagination={{
         page: result.page,

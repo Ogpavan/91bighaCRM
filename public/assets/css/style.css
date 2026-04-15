@@ -164,7 +164,7 @@ header {
   --purple-transparent: #F6E9FE;
   --teal-transparent: #E8F4F4;
   --form-bg: #F7F8FA;
-  --input-border: #F7F8FA;
+  --input-border: #DDE2E7;
   --heading-color: #051321;
   --body-color: #5D6772;
   --border-color: #E2E4E6;
@@ -238,7 +238,7 @@ header {
   --light-900: #363636;
   --light-950: #262828;
   --form-bg: #363636;
-  --input-border: #363636;
+  --input-border: #4A4A4A;
   --heading-color: #F6FAFA;
   --body-color: #929292;
   --border-color: #3A3A3A;
@@ -1650,6 +1650,14 @@ footer.footer-dark .footer-bottom {
 footer.footer-dark .footer-bottom p {
   color: var(--light);
   margin-bottom: 0;
+}
+@media (min-width: 992px) {
+  footer.footer-dark .footer-localities-secondary {
+    padding-left: 16px;
+  }
+  footer.footer-dark .footer-localities-secondary .footer-widget {
+    padding-top: 32px;
+  }
 }
 footer.footer-three {
   border-radius: 10px 10px 0 0;
@@ -4867,6 +4875,14 @@ span.select2-container.select2-container--default.select2-container--open {
   background: var(--white);
   border-radius: 10px;
   text-align: center;
+}
+.home-property-section .property-item .property-card-item h5 {
+  line-height: 1.2;
+  min-height: 2.4em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 @media (max-width: 991.98px) {
   .home-property-section .property-item {

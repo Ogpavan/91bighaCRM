@@ -57,6 +57,7 @@ import {
   getPropertyTypeOptions,
   hardDeletePropertyById,
   listApiPropertiesPaginated,
+  listActiveLocalitiesForFooter,
   updatePropertyById
 } from "@/lib/properties";
 import { getAppSettings, updateAppSettings } from "@/lib/app-settings";
@@ -1560,6 +1561,26 @@ async function getWebsiteLeadDefaults() {
 }
 
 async function handlePublic(request: Request, method: string, segments: string[]) {
+  if (segments[2] === "localities" && method === "GET") {
+    const url = new URL(request.url);
+    const location = url.searchParams.get("location");
+    const limit = url.searchParams.get("limit");
+    const items = await listActiveLocalitiesForFooter({
+      location,
+      limit: limit ? Number(limit) : undefined
+    });
+
+    return jsonResponse(
+      {
+        success: true,
+        location: (location || "Bareilly").trim() || "Bareilly",
+        items
+      },
+      200,
+      request
+    );
+  }
+
   if (segments[2] !== "enquiries" || method !== "POST") {
     return notFound(request);
   }

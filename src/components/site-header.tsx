@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
     href: "/contact-us",
     match: (pathname) => pathname.startsWith("/contact")
   },
+  { label: "Our Team", href: "/our-team", match: (pathname) => pathname === "/our-team" },
   { label: "About Us", href: "/about-us", match: (pathname) => pathname === "/about-us" }
 ];
 
@@ -121,14 +122,14 @@ export function SiteHeader() {
                 >
                   <WhatsAppLogo />
                 </a>
-                <a
-                  href="https://wa.me/917302166711"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
                   className="btn btn-secondary w-100"
+                  data-bs-toggle="modal"
+                  data-bs-target="#navbar-enquiry-modal"
                 >
                   Enquire
-                </a>
+                </button>
               </div>
             </div>
           </div>
@@ -150,15 +151,15 @@ export function SiteHeader() {
               <WhatsAppLogo />
             </a>
 
-            <a
-              href="https://wa.me/917302166711"
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
               className="btn btn-lg btn-dark d-inline-flex align-items-center"
+              data-bs-toggle="modal"
+              data-bs-target="#navbar-enquiry-modal"
             >
               <i className="material-icons-outlined me-1">forum</i>
               Enquire
-            </a>
+            </button>
           </div>
         </nav>
       </div>

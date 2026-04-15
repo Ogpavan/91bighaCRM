@@ -16,6 +16,7 @@ const vendorScripts = [
   "/assets/plugins/simplebar/simplebar.min.js",
   "/assets/js/waypoints.js",
   "/assets/js/jquery.counterup.min.js",
+  "/assets/plugins/ion-rangeslider/js/ion.rangeSlider.min.js",
   "/assets/js/aos.js",
   "/assets/js/script.js"
 ] as const;
@@ -123,6 +124,58 @@ function reinitializeRoutePlugins() {
   };
 
   initSelect2();
+
+  const initIonRangeSlider = () => {
+    const hasIon = typeof jqAny?.fn?.ionRangeSlider === "function";
+    if (!hasIon) {
+      return;
+    }
+
+    const initDoubleSlider = (selector: string) => {
+      jq(selector).each(function initEach(this: HTMLElement) {
+        const slider = jq(this);
+        const existing = slider.data("ionRangeSlider");
+        if (existing) {
+          return;
+        }
+
+        const dataset = this.dataset;
+        const form = this.closest("form");
+        const minName = dataset.minName || "";
+        const maxName = dataset.maxName || "";
+        const minField = minName ? form?.querySelector<HTMLInputElement>(`input[name="${minName}"]`) : null;
+        const maxField = maxName ? form?.querySelector<HTMLInputElement>(`input[name="${maxName}"]`) : null;
+
+        const min = Number(dataset.min ?? 0);
+        const max = Number(dataset.max ?? 0);
+        const from = Number(minField?.value || dataset.from || min || 0);
+        const to = Number(maxField?.value || dataset.to || max || 0);
+        const step = Number(dataset.step || 1);
+        const prefix = dataset.prefix || "";
+        const postfix = dataset.postfix || "";
+        const grid = dataset.grid === "true";
+
+        slider.ionRangeSlider({
+          type: "double",
+          min,
+          max,
+          from,
+          to,
+          step,
+          prefix,
+          postfix,
+          grid,
+          onFinish: (data: any) => {
+            if (minField) minField.value = String(data.from ?? "");
+            if (maxField) maxField.value = String(data.to ?? "");
+          }
+        });
+      });
+    };
+
+    initDoubleSlider(".js-area-range");
+    initDoubleSlider(".js-price-range");
+  };
 
   initSlick(".service-slider", {
     slidesToShow: 1,
@@ -320,6 +373,47 @@ function reinitializeRoutePlugins() {
       }
     ]
   });
+
+  initIonRangeSlider();
+
+  const initMinMaxSelectPairs = () => {
+    const initPair = (minSelector: string, maxSelector: string) => {
+      const minEl = document.querySelector<HTMLSelectElement>(minSelector);
+      const maxEl = document.querySelector<HTMLSelectElement>(maxSelector);
+      if (!minEl || !maxEl) return;
+      if (minEl.dataset.minmaxBound === "true") return;
+      minEl.dataset.minmaxBound = "true";
+      maxEl.dataset.minmaxBound = "true";
+
+      const update = () => {
+        const min = Number(minEl.value || "0");
+        const max = Number(maxEl.value || "0");
+
+        Array.from(maxEl.options).forEach((opt) => {
+          const v = Number(opt.value || "0");
+          opt.disabled = Boolean(opt.value) && Boolean(minEl.value) && v < min;
+        });
+
+        Array.from(minEl.options).forEach((opt) => {
+          const v = Number(opt.value || "0");
+          opt.disabled = Boolean(opt.value) && Boolean(maxEl.value) && v > max;
+        });
+
+        if (minEl.value && maxEl.value && max < min) {
+          maxEl.value = minEl.value;
+        }
+      };
+
+      minEl.addEventListener("change", update);
+      maxEl.addEventListener("change", update);
+      update();
+    };
+
+    initPair('select[name="minPrice"]', 'select[name="maxPrice"]');
+    initPair('select[name="minArea"]', 'select[name="maxArea"]');
+  };
+
+  initMinMaxSelectPairs();
 }
 
 function refreshTemplateUi() {

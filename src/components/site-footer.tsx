@@ -1,3 +1,5 @@
+import { FooterLocalities } from "@/components/footer-localities";
+
 export function SiteFooter() {
   const currentYear = new Date().getFullYear();
 
@@ -40,26 +42,12 @@ export function SiteFooter() {
               <div className="footer-widget">
                 <h5 className="footer-title">Pages</h5>
                 <ul className="footer-menu">
-                  <li><a href="/our-team.html">Our Team</a></li>
-                  <li><a href="/pricing.html">Pricing Plans</a></li>
-                  <li><a href="/gallery.html">Gallery</a></li>
-                  <li><a href="javascript:void(0);">Settings</a></li>
-                  <li><a href="javascript:void(0);">Profile</a></li>
-                  <li><a href="/buy-property-list.html">Listings</a></li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="col-lg-2 col-md-4 col-sm-4">
-              <div className="footer-widget">
-                <h5 className="footer-title">Company</h5>
-                <ul className="footer-menu">
+                  <li><a href="/">Home</a></li>
+                  <li><a href="/buy-property-grid-sidebar">Buy</a></li>
+                  <li><a href="/rent-property-grid-sidebar">Rent</a></li>
+                  <li><a href="/contact-us">Contact Us</a></li>
+                  <li><a href="/our-team">Our Team</a></li>
                   <li><a href="/about-us">About Us</a></li>
-                  <li><a href="javascript:void(0);">Careers</a></li>
-                  <li><a href="/blog-grid.html">Blog</a></li>
-                  <li><a href="javascript:void(0);">Affiliate Program</a></li>
-                  <li><a href="/add-property-buy.html">Add Your Listing</a></li>
-                  <li><a href="javascript:void(0);">Our Partners</a></li>
                 </ul>
               </div>
             </div>
@@ -67,14 +55,13 @@ export function SiteFooter() {
             <div className="col-lg-2 col-md-4 col-sm-4">
               <div className="footer-widget">
                 <h5 className="footer-title">Bareilly Localities</h5>
-                <ul className="footer-menu">
-                  <li><a href="javascript:void(0);">Civil Lines</a></li>
-                  <li><a href="javascript:void(0);">Rajendra Nagar</a></li>
-                  <li><a href="javascript:void(0);">DD Puram</a></li>
-                  <li><a href="javascript:void(0);">Pilibhit Bypass</a></li>
-                  <li><a href="javascript:void(0);">Model Town</a></li>
-                  <li><a href="javascript:void(0);">Izatnagar</a></li>
-                </ul>
+                <FooterLocalities limit={12} offset={0} take={6} />
+              </div>
+            </div>
+
+            <div className="col-lg-2 col-md-4 col-sm-4 footer-localities-secondary">
+              <div className="footer-widget">
+                <FooterLocalities limit={12} offset={6} take={6} />
               </div>
             </div>
 
@@ -82,11 +69,10 @@ export function SiteFooter() {
               <div className="footer-widget">
                 <h5 className="footer-title">Useful Links</h5>
                 <ul className="footer-menu">
-                  <li><a href="javascript:void(0);">Legal Notice</a></li>
+                  <li><a href="/legal-notice">Legal Notice</a></li>
                   <li><a href="/privacy-policy">Privacy Policy</a></li>
                   <li><a href="/terms-condition">Terms & Conditions</a></li>
-                  <li><a href="javascript:void(0);">Support</a></li>
-                  <li><a href="javascript:void(0);">Refund Policy</a></li>
+                  <li><a href="/support">Support</a></li>
                   <li><a href="/contact-us">Contact Us</a></li>
                 </ul>
               </div>

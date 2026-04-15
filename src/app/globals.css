@@ -198,6 +198,29 @@ header .main-menu-wrapper .menu-header .menu-logo .site-brand-logo {
   flex-wrap: nowrap;
 }
 
+/* Subtle global form borders */
+.form-control,
+.form-select,
+textarea.form-control {
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(5, 19, 33, 0.18);
+}
+
+.form-control:focus,
+.form-select:focus,
+textarea.form-control:focus {
+  border-color: rgba(var(--primary-rgb), 0.55);
+  box-shadow: 0 0 0 0.15rem rgba(var(--primary-rgb), 0.15);
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] textarea.form-control {
+  border-color: rgba(255, 255, 255, 0.18);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
 .enquiry-form-actions .btn {
   flex: 1 1 0;
   min-width: 0;

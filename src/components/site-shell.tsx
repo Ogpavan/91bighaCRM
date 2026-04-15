@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { NavbarEnquiryModal } from "@/components/navbar-enquiry-modal";
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -8,6 +9,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <SiteHeader />
       {children}
       <SiteFooter />
+      <NavbarEnquiryModal />
     </div>
   );
 }
