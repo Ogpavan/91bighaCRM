@@ -284,8 +284,8 @@ export default function LeadsListPage() {
     }
   };
 
-  const closeImportModal = () => {
-    if (previewLoading || importing) {
+  const closeImportModal = (options?: { force?: boolean }) => {
+    if (!options?.force && (previewLoading || importing)) {
       return;
     }
 
@@ -293,6 +293,7 @@ export default function LeadsListPage() {
     setImportFile(null);
     setImportPreview(null);
     setImportMappings({});
+    setDefaultSourceId("");
     setDefaultStatusId("");
   };
 
@@ -343,8 +344,7 @@ export default function LeadsListPage() {
       });
       setImportSummary(result);
       setNotice(result.message);
-      setImporting(false);
-      closeImportModal();
+      closeImportModal({ force: true });
       await loadAll();
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : "Failed to import leads");

@@ -1953,7 +1953,6 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
     const imported: Array<{ row: number; propertyCode: string; slug: string }> = [];
     const skipped: Array<{ row: number; reason: string }> = [];
     const errors: Array<{ row: number; error: string }> = [];
-    const downloadedImageCache = new Map<string, string>();
     const importedPropertyCodes = new Set<string>();
     const importedSignatures = new Set<string>();
 
@@ -2054,15 +2053,8 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
             continue;
           }
 
-          const cached = downloadedImageCache.get(imageSource);
-          if (cached) {
-            resolvedImageUrls.push(cached);
-            continue;
-          }
-
-          const downloadedImage = await saveRemoteImageUrl(imageSource);
-          downloadedImageCache.set(imageSource, downloadedImage);
-          resolvedImageUrls.push(downloadedImage);
+          // Keep remote URLs as-is (do not download and store in /uploads during import).
+          resolvedImageUrls.push(imageSource);
         }
 
         const payload = {
