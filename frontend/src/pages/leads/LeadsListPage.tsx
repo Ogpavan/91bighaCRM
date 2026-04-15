@@ -820,7 +820,7 @@ export default function LeadsListPage() {
           <Card className="flex max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col">
             <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
               <CardTitle className="text-sm">Import Leads</CardTitle>
-              <Button size="sm" variant="outline" disabled={previewLoading || importing} onClick={closeImportModal}>
+              <Button size="sm" variant="outline" disabled={previewLoading || importing} onClick={() => closeImportModal()}>
                 Close
               </Button>
             </CardHeader>
@@ -945,7 +945,7 @@ export default function LeadsListPage() {
                   </div>
 
                   <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" disabled={importing} onClick={closeImportModal}>
+                    <Button size="sm" variant="outline" disabled={importing} onClick={() => closeImportModal()}>
                       Cancel
                     </Button>
                     <Button size="sm" disabled={importing} onClick={() => void handleImport()}>
