@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
-import { X } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,10 @@ import {
   getProjects,
   importProperties,
   type ImportPropertiesResponse,
+  type ProjectFilterOptions,
   type ProjectListing,
-  type ProjectPropertyType
+  type ProjectPropertyType,
+  type ProjectsFilters
 } from "@/api/projects-service";
 
 type FormState = {
@@ -108,6 +110,12 @@ const INITIAL_FORM: FormState = {
 
 const currency = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const dateFormatter = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+const EMPTY_FILTER_OPTIONS: ProjectFilterOptions = {
+  listingTypes: [],
+  statuses: [],
+  cities: [],
+  propertyTypes: []
+};
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
@@ -164,6 +172,7 @@ export default function ProjectsPage() {
   const [panelMode, setPanelMode] = useState<"create" | "import">("create");
   const [items, setItems] = useState<ProjectListing[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<ProjectPropertyType[]>([]);
+  const [filterOptions, setFilterOptions] = useState<ProjectFilterOptions>(EMPTY_FILTER_OPTIONS);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -178,14 +187,40 @@ export default function ProjectsPage() {
   const [importResult, setImportResult] = useState<ImportPropertiesResponse | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    search: "",
+    listingType: "",
+    propertyType: "",
+    status: "",
+    city: "",
+    isFeatured: "",
+    isVerified: ""
+  });
 
-  const loadProjects = async (nextPage = page, nextPageSize = pageSize) => {
+  const query = useMemo<ProjectsFilters>(
+    () => ({
+      page,
+      limit: pageSize,
+      search: filters.search,
+      listingType: filters.listingType,
+      propertyType: filters.propertyType,
+      status: filters.status,
+      city: filters.city,
+      isFeatured: filters.isFeatured,
+      isVerified: filters.isVerified
+    }),
+    [filters, page, pageSize]
+  );
+
+  const loadProjects = async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await getProjects({ page: nextPage, limit: nextPageSize });
+      const response = await getProjects(query);
       setItems(response.items);
       setPropertyTypes(response.propertyTypes);
+      setFilterOptions(response.filterOptions);
       setPage(response.pagination.page);
       setPageSize(response.pagination.limit);
       setTotalPages(Math.max(response.pagination.totalPages, 1));
@@ -201,8 +236,8 @@ export default function ProjectsPage() {
   };
 
   useEffect(() => {
-    void loadProjects(page, pageSize);
-  }, [page, pageSize]);
+    void loadProjects();
+  }, [query]);
 
   const setText = (key: keyof FormState, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [key]: value } as FormState));
@@ -229,6 +264,19 @@ export default function ProjectsPage() {
     }
     setError("");
     setPanelOpen(false);
+  };
+
+  const clearFilters = () => {
+    setPage(1);
+    setFilters({
+      search: "",
+      listingType: "",
+      propertyType: "",
+      status: "",
+      city: "",
+      isFeatured: "",
+      isVerified: ""
+    });
   };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -284,7 +332,7 @@ export default function ProjectsPage() {
       setSuccess(`Property saved as ${created?.propertyCode || "new listing"}. Active sale/rent listings appear on the homepage automatically.`);
       resetCreateForm();
       setPanelOpen(false);
-      await loadProjects(page, pageSize);
+      await loadProjects();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Failed to save property.");
     } finally {
@@ -388,7 +436,7 @@ export default function ProjectsPage() {
       setSuccess(
         `Imported ${result.importedCount} properties.${skippedCount ? ` ${skippedCount} duplicates skipped.` : ""}${result.failedCount ? ` ${result.failedCount} rows failed.` : ""}`
       );
-      await loadProjects(page, pageSize);
+      await loadProjects();
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : "Failed to import properties.");
     } finally {
@@ -403,6 +451,10 @@ export default function ProjectsPage() {
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="text-sm">Properties</CardTitle>
             <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setShowFilters((prev) => !prev)}>
+                <Filter className="mr-1 h-4 w-4" />
+                Filter
+              </Button>
               <Button size="sm" variant="outline" onClick={openImportPanel}>
                 Import Properties
               </Button>
@@ -413,6 +465,114 @@ export default function ProjectsPage() {
           </div>
         </CardHeader>
         <CardContent className="p-4 pt-0">
+          {showFilters ? (
+            <div className="mb-3 rounded-sm border border-gray-200 bg-gray-50 p-3">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-4">
+                <Input
+                  className="h-9 text-xs"
+                  placeholder="Search title, code, slug, location"
+                  value={filters.search}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((prev) => ({ ...prev, search: event.target.value }));
+                  }}
+                />
+                <Select
+                  className="h-9 text-xs"
+                  value={filters.listingType}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((prev) => ({ ...prev, listingType: event.target.value }));
+                  }}
+                >
+                  <option value="">All Listing Types</option>
+                  {filterOptions.listingTypes.map((listingType) => (
+                    <option key={listingType} value={listingType}>
+                      {listingType}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  className="h-9 text-xs"
+                  value={filters.propertyType}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((prev) => ({ ...prev, propertyType: event.target.value }));
+                  }}
+                >
+                  <option value="">All Property Types</option>
+                  {filterOptions.propertyTypes.map((propertyType) => (
+                    <option key={propertyType} value={propertyType}>
+                      {propertyType}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  className="h-9 text-xs"
+                  value={filters.status}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((prev) => ({ ...prev, status: event.target.value }));
+                  }}
+                >
+                  <option value="">All Statuses</option>
+                  {filterOptions.statuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  className="h-9 text-xs"
+                  list="property-filter-city-options"
+                  placeholder="Filter by city"
+                  value={filters.city}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((prev) => ({ ...prev, city: event.target.value }));
+                  }}
+                />
+                <datalist id="property-filter-city-options">
+                  {filterOptions.cities.map((city) => (
+                    <option key={city} value={city} />
+                  ))}
+                </datalist>
+                <Select
+                  className="h-9 text-xs"
+                  value={filters.isFeatured}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((prev) => ({ ...prev, isFeatured: event.target.value }));
+                  }}
+                >
+                  <option value="">All Featured States</option>
+                  <option value="true">Featured Only</option>
+                  <option value="false">Standard Only</option>
+                </Select>
+                <Select
+                  className="h-9 text-xs"
+                  value={filters.isVerified}
+                  onChange={(event) => {
+                    setPage(1);
+                    setFilters((prev) => ({ ...prev, isVerified: event.target.value }));
+                  }}
+                >
+                  <option value="">All Verification States</option>
+                  <option value="true">Verified Only</option>
+                  <option value="false">Unverified Only</option>
+                </Select>
+              </div>
+              <div className="mt-3 flex justify-end gap-2">
+                <Button size="sm" variant="outline" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowFilters(false)}>
+                  Hide Filters
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           {success ? <p className="mb-3 text-xs text-green-600">{success}</p> : null}
           {error && !panelOpen ? <p className="mb-3 text-xs text-red-600">{error}</p> : null}
           {loading ? (

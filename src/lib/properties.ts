@@ -819,17 +819,165 @@ export async function listApiProperties(limit = 50) {
   return result.rows.map(mapHomepageProperty);
 }
 
-export async function listApiPropertiesPaginated(page = 1, limit = 10) {
+export type ListApiPropertiesFilters = {
+  search?: string | null;
+  listingType?: string | null;
+  propertyType?: string | null;
+  status?: string | null;
+  city?: string | null;
+  isFeatured?: string | null;
+  isVerified?: string | null;
+};
+
+export type ApiPropertyFilterOptions = {
+  listingTypes: string[];
+  statuses: string[];
+  cities: string[];
+  propertyTypes: string[];
+};
+
+export async function listApiPropertyFilterOptions(): Promise<ApiPropertyFilterOptions> {
+  const db = await getDb();
+
+  const [listingTypesResult, statusesResult, citiesResult, propertyTypesResult] = await Promise.all([
+    db.query<{ value: string }>(
+      `
+        select min(trim(p.listing_type)) as value
+        from properties p
+        where p.deleted_at is null
+          and nullif(trim(coalesce(p.listing_type, '')), '') is not null
+        group by lower(trim(p.listing_type))
+        order by min(trim(p.listing_type)) asc
+      `
+    ),
+    db.query<{ value: string }>(
+      `
+        select min(trim(p.status)) as value
+        from properties p
+        where p.deleted_at is null
+          and nullif(trim(coalesce(p.status, '')), '') is not null
+        group by lower(trim(p.status))
+        order by min(trim(p.status)) asc
+      `
+    ),
+    db.query<{ value: string }>(
+      `
+        select min(trim(p.city)) as value
+        from properties p
+        where p.deleted_at is null
+          and nullif(trim(coalesce(p.city, '')), '') is not null
+        group by lower(trim(p.city))
+        order by min(trim(p.city)) asc
+      `
+    ),
+    db.query<{ value: string }>(
+      `
+        select min(trim(p.property_type)) as value
+        from properties p
+        where p.deleted_at is null
+          and nullif(trim(coalesce(p.property_type, '')), '') is not null
+        group by lower(trim(p.property_type))
+        order by min(trim(p.property_type)) asc
+      `
+    )
+  ]);
+
+  return {
+    listingTypes: listingTypesResult.rows.map((row) => row.value),
+    statuses: statusesResult.rows.map((row) => row.value),
+    cities: citiesResult.rows.map((row) => row.value),
+    propertyTypes: propertyTypesResult.rows.map((row) => row.value)
+  };
+}
+
+export async function listApiPropertiesPaginated(page = 1, limit = 10, filters: ListApiPropertiesFilters = {}) {
   const db = await getDb();
   const pageSize = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 10;
   const requestedPage = Number.isFinite(page) ? Math.max(Math.trunc(page), 1) : 1;
+  const whereParts = ["p.deleted_at is null"];
+  const params: Array<string | number | boolean> = [];
+
+  const pushParam = (value: string | number | boolean) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+
+  const search = filters.search?.trim();
+  if (search) {
+    const searchParam = pushParam(`%${search.toLowerCase()}%`);
+    whereParts.push(
+      `(
+        lower(coalesce(p.property_code, '')) like ${searchParam}
+        or lower(coalesce(p.title, '')) like ${searchParam}
+        or lower(coalesce(p.slug, '')) like ${searchParam}
+        or lower(coalesce(p.property_type, '')) like ${searchParam}
+        or lower(coalesce(p.locality, '')) like ${searchParam}
+        or lower(coalesce(p.city, '')) like ${searchParam}
+        or lower(coalesce(p.state, '')) like ${searchParam}
+        or lower(coalesce(p.address_line1, '')) like ${searchParam}
+      )`
+    );
+  }
+
+  const listingType = filters.listingType?.trim();
+  if (listingType) {
+    const listingTypeParam = pushParam(listingType.toLowerCase());
+    whereParts.push(`lower(trim(coalesce(p.listing_type, ''))) = ${listingTypeParam}`);
+  }
+
+  const propertyType = filters.propertyType?.trim();
+  if (propertyType) {
+    const propertyTypeParam = pushParam(propertyType.toLowerCase());
+    whereParts.push(`lower(trim(coalesce(p.property_type, ''))) = ${propertyTypeParam}`);
+  }
+
+  const status = filters.status?.trim();
+  if (status) {
+    const statusParam = pushParam(status.toLowerCase());
+    whereParts.push(`lower(trim(coalesce(p.status, ''))) = ${statusParam}`);
+  }
+
+  const city = filters.city?.trim();
+  if (city) {
+    const cityParam = pushParam(city.toLowerCase());
+    whereParts.push(`lower(trim(coalesce(p.city, ''))) = ${cityParam}`);
+  }
+
+  const normalizeBooleanFilter = (value?: string | null) => {
+    if (!value) {
+      return null;
+    }
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") {
+      return true;
+    }
+    if (normalized === "false") {
+      return false;
+    }
+    return null;
+  };
+
+  const isFeatured = normalizeBooleanFilter(filters.isFeatured);
+  if (isFeatured !== null) {
+    const featuredParam = pushParam(isFeatured);
+    whereParts.push(`p.is_featured = ${featuredParam}`);
+  }
+
+  const isVerified = normalizeBooleanFilter(filters.isVerified);
+  if (isVerified !== null) {
+    const verifiedParam = pushParam(isVerified);
+    whereParts.push(`p.is_verified = ${verifiedParam}`);
+  }
+
+  const whereClause = whereParts.join(" and ");
 
   const totalResult = await db.query<{ total: string }>(
     `
       select count(p.id)::text as total
       from properties p
-      where p.deleted_at is null
-    `
+      where ${whereClause}
+    `,
+    params
   );
   const total = Number(totalResult.rows[0]?.total ?? "0");
   const totalPages = total > 0 ? Math.ceil(total / pageSize) : 1;
@@ -863,11 +1011,11 @@ export async function listApiPropertiesPaginated(page = 1, limit = 10) {
         p.is_verified,
         p.published_at::text
       from properties p
-      where p.deleted_at is null
+      where ${whereClause}
       order by coalesce(p.published_at, p.created_at) desc
-      limit $1 offset $2
+      limit $${params.length + 1} offset $${params.length + 2}
     `,
-    [pageSize, offset]
+    [...params, pageSize, offset]
   );
 
   return {

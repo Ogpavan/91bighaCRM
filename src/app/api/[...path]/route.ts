@@ -56,6 +56,7 @@ import {
   getApiPropertyById,
   getPropertyTypeOptions,
   hardDeletePropertyById,
+  listApiPropertyFilterOptions,
   listApiPropertiesPaginated,
   listActiveLocalitiesForFooter,
   updatePropertyById
@@ -1702,9 +1703,17 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
       const url = new URL(request.url);
       const page = ensureNumber(url.searchParams.get("page"), 1);
       const limit = ensureNumber(url.searchParams.get("limit"), 10);
-      const data = await listApiPropertiesPaginated(page, limit);
-      const propertyTypes = await getPropertyTypeOptions();
-      return jsonResponse({ ok: true, items: data.items, pagination: data.pagination, propertyTypes }, 200, request);
+      const data = await listApiPropertiesPaginated(page, limit, {
+        search: url.searchParams.get("search"),
+        listingType: url.searchParams.get("listingType"),
+        propertyType: url.searchParams.get("propertyType"),
+        status: url.searchParams.get("status"),
+        city: url.searchParams.get("city"),
+        isFeatured: url.searchParams.get("isFeatured"),
+        isVerified: url.searchParams.get("isVerified")
+      });
+      const [propertyTypes, filterOptions] = await Promise.all([getPropertyTypeOptions(), listApiPropertyFilterOptions()]);
+      return jsonResponse({ ok: true, items: data.items, pagination: data.pagination, propertyTypes, filterOptions }, 200, request);
     }
 
     if (method === "POST") {

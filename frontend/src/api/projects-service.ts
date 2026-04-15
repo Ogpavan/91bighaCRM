@@ -1,10 +1,16 @@
 import { apiRequest } from "@/api/api";
-import { getCrmPropertyTypeItems } from "@/lib/property-types";
 
 export type ProjectPropertyType = {
   id: number;
   name: string;
   slug: string;
+};
+
+export type ProjectFilterOptions = {
+  listingTypes: string[];
+  statuses: string[];
+  cities: string[];
+  propertyTypes: string[];
 };
 
 export type ProjectListing = {
@@ -55,6 +61,18 @@ export type ProjectDetail = ProjectListing & {
   ageOfProperty: number | null;
   images: string[];
   features: string[];
+};
+
+export type ProjectsFilters = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  listingType?: string;
+  propertyType?: string;
+  status?: string;
+  city?: string;
+  isFeatured?: string;
+  isVerified?: string;
 };
 
 export type CreateProjectPayload = {
@@ -115,6 +133,7 @@ type ProjectsResponse = {
     totalPages: number;
   };
   propertyTypes: ProjectPropertyType[];
+  filterOptions?: ProjectFilterOptions;
   error?: string;
 };
 
@@ -156,21 +175,51 @@ export type ImportPropertiesResponse = {
   error?: string;
 };
 
-export async function getProjects(params?: { page?: number; limit?: number }): Promise<{
+export async function getProjects(params?: ProjectsFilters): Promise<{
   items: ProjectListing[];
   propertyTypes: ProjectPropertyType[];
+  filterOptions: ProjectFilterOptions;
   pagination: ProjectsResponse["pagination"];
 }> {
   const page = params?.page ?? 1;
   const limit = params?.limit ?? 10;
-  const data = await apiRequest<ProjectsResponse>(`/api/properties?page=${page}&limit=${limit}`);
+  const query = new URLSearchParams();
+  query.set("page", String(page));
+  query.set("limit", String(limit));
+
+  if (params?.search) {
+    query.set("search", params.search);
+  }
+  if (params?.listingType) {
+    query.set("listingType", params.listingType);
+  }
+  if (params?.propertyType) {
+    query.set("propertyType", params.propertyType);
+  }
+  if (params?.status) {
+    query.set("status", params.status);
+  }
+  if (params?.city) {
+    query.set("city", params.city);
+  }
+  if (params?.isFeatured) {
+    query.set("isFeatured", params.isFeatured);
+  }
+  if (params?.isVerified) {
+    query.set("isVerified", params.isVerified);
+  }
+
+  const data = await apiRequest<ProjectsResponse>(`/api/properties?${query.toString()}`);
   return {
     items: data.items,
     pagination: data.pagination,
-    propertyTypes: getCrmPropertyTypeItems().map((item, index) => ({
-      ...item,
-      id: Number.parseInt(item.id, 10) || index + 1
-    }))
+    propertyTypes: data.propertyTypes || [],
+    filterOptions: data.filterOptions || {
+      listingTypes: [],
+      statuses: [],
+      cities: [],
+      propertyTypes: []
+    }
   };
 }
 
