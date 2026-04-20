@@ -78,7 +78,7 @@ export default function MyTasksPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [showOpenOnly, setShowOpenOnly] = useState(true);
+  const [showOpenOnly, setShowOpenOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [summary, setSummary] = useState<TaskSummary>({ dueToday: 0, overdue: 0, completedToday: 0, upcoming: [] });
