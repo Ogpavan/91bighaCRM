@@ -352,7 +352,11 @@ export default function LeadsListPage() {
       field: "statusName",
       headerName: "Status",
       width: 140,
-      sortComparator: (_a, _b, param1, param2) => param1.row.statusSortOrder - param2.row.statusSortOrder,
+      sortComparator: (_a, _b, param1, param2) => {
+        const row1 = param1.api.getRow(param1.id) as Lead;
+        const row2 = param2.api.getRow(param2.id) as Lead;
+        return (row1?.statusSortOrder ?? 0) - (row2?.statusSortOrder ?? 0);
+      },
       renderCell: (params) => <LeadStatusBadge name={params.row.statusName} sortOrder={params.row.statusSortOrder} />
     },
     {
