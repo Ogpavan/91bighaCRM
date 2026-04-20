@@ -235,11 +235,18 @@ function getScopeClause(role: string, userId: string, params: unknown[]) {
   return ` and (t.assigned_to = $${params.length} or t.created_by = $${params.length})`;
 }
 
-export async function ensureCrmTasksSchema() {
-  await ensureCrmAuthSchema();
-  await ensureCrmLeadsSchema();
+let tasksSchemaPromise: Promise<void> | null = null;
 
-  await withDbClient(async (client) => {
+export async function ensureCrmTasksSchema() {
+  if (tasksSchemaPromise) {
+    return tasksSchemaPromise;
+  }
+
+  tasksSchemaPromise = (async () => {
+    await ensureCrmAuthSchema();
+    await ensureCrmLeadsSchema();
+
+    await withDbClient(async (client) => {
     await client.query(`
       create table if not exists crm_tasks (
         id bigserial primary key,
@@ -296,6 +303,9 @@ export async function ensureCrmTasksSchema() {
       on crm_task_activities(task_id, created_at desc)
     `);
   });
+  })();
+
+  return tasksSchemaPromise;
 }
 
 export async function listTasks(filters: TaskFilters, actor: { userId: string; role: string }) {
@@ -365,7 +375,6 @@ export async function listTasks(filters: TaskFilters, actor: { userId: string; r
           ${whereClause}
           order by
             case when t.status = 'Completed' then 1 else 0 end asc,
-            t.due_date asc nulls last,
             t.created_at desc
           limit ${limitParam}
           offset ${offsetParam}
@@ -524,7 +533,8 @@ export async function createTask(payload: CreateTaskPayload, actor: { userId: st
         priority
       });
 
-      await createNotifications(
+      // Non-blocking notification creation
+      void createNotifications(
         [
           assignedTo !== Number(actor.userId)
             ? {
@@ -551,8 +561,7 @@ export async function createTask(payload: CreateTaskPayload, actor: { userId: st
           message: string;
           entityType: string;
           entityId: string;
-        }>,
-        client
+        }>
       );
 
       await client.query("commit");
@@ -675,7 +684,8 @@ export async function updateTask(taskId: string, payload: UpdateTaskPayload, act
         assignedTo: nextAssignedTo
       });
 
-      await createNotifications(
+      // Non-blocking notification creation
+      void createNotifications(
         [
           nextAssignedTo !== Number(existingTask.assigned_to)
             ? {
@@ -704,8 +714,7 @@ export async function updateTask(taskId: string, payload: UpdateTaskPayload, act
           message: string;
           entityType: string;
           entityId: string;
-        }>,
-        client
+        }>
       );
 
       await client.query("commit");

@@ -76,8 +76,8 @@ export default function MyTasksPage() {
   const [items, setItems] = useState<Task[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
-  const [fromDate, setFromDate] = useState(today);
-  const [toDate, setToDate] = useState(today);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [showOpenOnly, setShowOpenOnly] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -120,12 +120,11 @@ export default function MyTasksPage() {
   };
 
   const refresh = () => {
-    if (page !== 1) {
+    if (page === 1) {
+      void load();
+    } else {
       setPage(1);
-      return;
     }
-
-    void load();
   };
  
   useEffect(() => {

@@ -1,18 +1,28 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { Pencil } from "lucide-react";
+import {
+  DataGrid,
+  GridToolbarColumnsButton,
+  GridToolbarContainer,
+  GridToolbarDensitySelector,
+  GridToolbarExport,
+  GridToolbarFilterButton,
+  GridToolbarQuickFilter,
+  type GridColDef
+} from "@mui/x-data-grid";
+import { Box, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
-import { createProjectEntity, getProjectsEntity, type ProjectEntity } from "@/api/projects-entity-service";
+  createProjectEntity,
+  getProjectsEntity,
+  updateProjectEntity,
+  type ProjectEntity
+} from "@/api/projects-entity-service";
 
 type FormState = {
   name: string;
@@ -28,14 +38,80 @@ const INITIAL_FORM: FormState = {
   description: ""
 };
 
+function TruncatedCell({ value }: { value?: string | null }) {
+  const text = value?.trim() ? value : "-";
+  const hasValue = text !== "-";
+
+  return (
+    <Tooltip title={hasValue ? text : ""} disableHoverListener={!hasValue} placement="top" arrow>
+      <div
+        className="cursor-help break-words"
+        style={{
+          width: "100%",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          whiteSpace: "normal"
+        }}
+      >
+        {text}
+      </div>
+    </Tooltip>
+  );
+}
+
+function ProjectsEntityGridToolbar() {
+  return (
+    <GridToolbarContainer sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <Box sx={{ minWidth: 240, flex: { xs: "1 1 100%", md: "0 0 auto" } }}>
+        <GridToolbarQuickFilter debounceMs={300} sx={{ width: { xs: "100%", md: 320 } }} />
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+        <GridToolbarColumnsButton />
+        <GridToolbarFilterButton />
+        <GridToolbarDensitySelector />
+        <GridToolbarExport />
+      </Box>
+    </GridToolbarContainer>
+  );
+}
+
 export default function ProjectsEntityPage() {
   const [items, setItems] = useState<ProjectEntity[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<ProjectEntity | null>(null);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const projectColumns: Array<GridColDef<ProjectEntity>> = [
+    { field: "projectCode", headerName: "Code", minWidth: 250 },
+    { field: "name", headerName: "Name", minWidth: 160, flex: 1, renderCell: (params) => <TruncatedCell value={params.row.name} /> },
+    { field: "location", headerName: "Location", minWidth: 180, renderCell: (params) => <TruncatedCell value={params.row.location} /> },
+    { field: "status", headerName: "Status", minWidth: 120, renderCell: (params) => <span className="capitalize">{params.row.status}</span> },
+    { field: "description", headerName: "Description", minWidth: 250, flex: 1, sortable: false, renderCell: (params) => <TruncatedCell value={params.row.description} /> },
+    { field: "propertiesCount", headerName: "Properties", minWidth: 110, type: "number" },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 100,
+      sortable: false,
+      filterable: false,
+      renderCell: (params) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 w-8 p-0"
+          onClick={() => openEditPopup(params.row)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      )
+    }
+  ];
 
   const loadProjects = async () => {
     setLoading(true);
@@ -57,6 +133,25 @@ export default function ProjectsEntityPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const openCreatePopup = () => {
+    setEditingProject(null);
+    setForm(INITIAL_FORM);
+    setError("");
+    setPopupOpen(true);
+  };
+
+  const openEditPopup = (project: ProjectEntity) => {
+    setEditingProject(project);
+    setForm({
+      name: project.name,
+      location: project.location || "",
+      status: project.status,
+      description: project.description || ""
+    });
+    setError("");
+    setPopupOpen(true);
+  };
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
@@ -64,18 +159,29 @@ export default function ProjectsEntityPage() {
     setSuccess("");
 
     try {
-      const created = await createProjectEntity({
-        name: form.name,
-        location: form.location || undefined,
-        status: form.status,
-        description: form.description || undefined
-      });
-      setSuccess(`Project ${created.projectCode} created successfully.`);
+      if (editingProject) {
+        await updateProjectEntity(editingProject.id, {
+          name: form.name,
+          location: form.location || undefined,
+          status: form.status,
+          description: form.description || undefined
+        });
+        setSuccess(`Project ${editingProject.projectCode} updated successfully.`);
+      } else {
+        const created = await createProjectEntity({
+          name: form.name,
+          location: form.location || undefined,
+          status: form.status,
+          description: form.description || undefined
+        });
+        setSuccess(`Project ${created.projectCode} created successfully.`);
+      }
       setForm(INITIAL_FORM);
       setPopupOpen(false);
+      setEditingProject(null);
       await loadProjects();
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Failed to create project.");
+      setError(submitError instanceof Error ? submitError.message : "Failed to save project.");
     } finally {
       setSubmitting(false);
     }
@@ -87,7 +193,7 @@ export default function ProjectsEntityPage() {
         <CardHeader className="p-4 pb-2">
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="text-sm">Projects</CardTitle>
-            <Button size="sm" onClick={() => { setPopupOpen(true); setError(""); }}>
+            <Button size="sm" onClick={openCreatePopup}>
               Create Project
             </Button>
           </div>
@@ -95,60 +201,52 @@ export default function ProjectsEntityPage() {
         <CardContent className="p-4 pt-0">
           {success ? <p className="mb-3 text-xs text-green-600">{success}</p> : null}
           {error && !popupOpen ? <p className="mb-3 text-xs text-red-600">{error}</p> : null}
-          {loading ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Properties</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <TableRow key={`project-skeleton-${index}`}>
-                      <TableCell><div className="h-4 w-24 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-32 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-28 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-20 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-48 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-12 animate-pulse rounded bg-gray-200" /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          
+          <div className="w-full">
+            <div style={{ height: 560 }}>
+              <DataGrid
+                density="compact"
+                rows={items}
+                columns={projectColumns}
+                getRowId={(row) => row.id}
+                loading={loading}
+                disableRowSelectionOnClick
+                slots={{ toolbar: ProjectsEntityGridToolbar }}
+                hideFooter
+                sx={(theme) => ({
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: "0.375rem",
+                  fontSize: "0.75rem",
+                  "& .MuiDataGrid-columnHeaders": {
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
+                    borderBottom: `1px solid ${alpha(theme.palette.primary.contrastText, 0.2)}`
+                  },
+                  "& .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 700
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(odd) .MuiDataGrid-cell": {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(even) .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.background.paper
+                  },
+                  "& .MuiDataGrid-row:hover .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.action.hover
+                  },
+                  "& .MuiDataGrid-iconButtonContainer, & .MuiDataGrid-menuIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-filterIcon": {
+                    color: theme.palette.primary.contrastText
+                  },
+                  "& .MuiDataGrid-toolbarContainer": {
+                    padding: "0.5rem"
+                  },
+                  "& .MuiDataGrid-toolbarContainer .MuiButtonBase-root": {
+                    fontSize: "0.75rem"
+                  }
+                })}
+              />
             </div>
-          ) : null}
-          {!loading ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Properties</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.projectCode}</TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.location || "-"}</TableCell>
-                    <TableCell className="capitalize">{item.status}</TableCell>
-                    <TableCell className="max-w-72 whitespace-normal">{item.description || "-"}</TableCell>
-                    <TableCell>{item.propertiesCount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : null}
+          </div>
         </CardContent>
       </Card>
 
@@ -160,7 +258,7 @@ export default function ProjectsEntityPage() {
             <Card className="w-full max-w-xl">
               <CardHeader className="p-4 pb-2">
                 <div className="flex items-center justify-between gap-3">
-                  <CardTitle className="text-sm">Create Project</CardTitle>
+                  <CardTitle className="text-sm">{editingProject ? "Edit Project" : "Create Project"}</CardTitle>
                   <Button size="sm" variant="outline" disabled={submitting} onClick={() => setPopupOpen(false)}>
                     Close
                   </Button>

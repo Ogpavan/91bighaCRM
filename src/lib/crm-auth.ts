@@ -259,8 +259,14 @@ export function mapUserRowToAuthUser(row: UserRow): CrmAuthUser {
   };
 }
 
+let authSchemaPromise: Promise<void> | null = null;
+
 export async function ensureCrmAuthSchema() {
-  await withDbClient(async (client) => {
+  if (authSchemaPromise) {
+    return authSchemaPromise;
+  }
+
+  authSchemaPromise = withDbClient(async (client) => {
     await client.query(`
       alter table users
         add column if not exists password_hash text,

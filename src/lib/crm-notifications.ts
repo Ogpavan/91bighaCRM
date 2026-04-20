@@ -97,10 +97,17 @@ export function subscribeToNotificationEvents(userId: string, listener: Notifica
   return getNotificationPubSub().subscribe(userId, listener);
 }
 
-export async function ensureCrmNotificationsSchema() {
-  await ensureCrmAuthSchema();
+let notificationsSchemaPromise: Promise<void> | null = null;
 
-  await withDbClient(async (client) => {
+export async function ensureCrmNotificationsSchema() {
+  if (notificationsSchemaPromise) {
+    return notificationsSchemaPromise;
+  }
+
+  notificationsSchemaPromise = (async () => {
+    await ensureCrmAuthSchema();
+
+    await withDbClient(async (client) => {
     await client.query(`
       create table if not exists crm_notifications (
         id bigserial primary key,
@@ -124,6 +131,9 @@ export async function ensureCrmNotificationsSchema() {
       on crm_notifications(user_id, is_read, created_at desc)
     `);
   });
+  })();
+
+  return notificationsSchemaPromise;
 }
 
 export async function createNotification(input: CreateNotificationInput, client?: Queryable) {

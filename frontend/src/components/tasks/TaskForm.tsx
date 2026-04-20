@@ -79,9 +79,7 @@ export default function TaskForm({ onSuccess, onCancel, title = "Create Task", s
       if (!getValues("priority") && meta.priorities[0]) {
         setValue("priority", meta.priorities[0]);
       }
-      if (!getValues("assignedTo") && isElevatedUser && users.items[0]) {
-        setValue("assignedTo", users.items[0].id);
-      } else if (!getValues("assignedTo") && !isElevatedUser && user?.id) {
+      if (!getValues("assignedTo") && user?.id) {
         setValue("assignedTo", user.id);
       }
     };

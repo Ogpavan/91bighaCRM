@@ -60,7 +60,7 @@ export default function AllTasksPage() {
   const [items, setItems] = useState<Task[]>([]);
   const [assignees, setAssignees] = useState<Array<{ id: string; fullName: string }>>([]);
   const [meta, setMeta] = useState<{ statuses: string[]; priorities: string[]; types: string[] }>({ statuses: [], priorities: [], types: [] });
-  const [filters, setFilters] = useState({ assignedTo: "", status: "", priority: "", type: "", fromDate: today, toDate: today });
+  const [filters, setFilters] = useState({ assignedTo: "", status: "", priority: "", type: "", fromDate: "", toDate: "" });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [notice, setNotice] = useState("");
@@ -99,12 +99,11 @@ export default function AllTasksPage() {
   };
 
   const refresh = () => {
-    if (page !== 1) {
+    if (page === 1) {
+      void load();
+    } else {
       setPage(1);
-      return;
     }
-
-    void load();
   };
 
   const closeDetailModal = () => {

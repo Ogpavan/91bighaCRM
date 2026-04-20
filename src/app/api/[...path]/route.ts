@@ -50,7 +50,7 @@ import {
   getTaskSummaryReport,
   parseReportFilters
 } from "@/lib/report-aggregates";
-import { createProjectEntity, listProjectsEntity } from "@/lib/projects-entity";
+import { createProjectEntity, listProjectsEntity, updateProjectEntity } from "@/lib/projects-entity";
 import {
   createProperty,
   getApiPropertyById,
@@ -841,19 +841,31 @@ async function handleNotifications(request: Request, method: string, segments: s
   return notFound(request);
 }
 
-async function handleProjectsEntity(request: Request, method: string) {
+async function handleProjectsEntity(request: Request, method: string, segments: string[]) {
   requirePermission(request, "view_leads");
 
-  if (method === "GET") {
-    const items = await listProjectsEntity();
-    return jsonResponse({ success: true, items }, 200, request);
+  if (segments.length === 2) {
+    if (method === "GET") {
+      const items = await listProjectsEntity();
+      return jsonResponse({ success: true, items }, 200, request);
+    }
+
+    if (method === "POST") {
+      requirePermission(request, "edit_leads");
+      const payload = await parseJson<Record<string, unknown>>(request);
+      const project = await createProjectEntity(payload);
+      return jsonResponse({ success: true, project }, 201, request);
+    }
   }
 
-  if (method === "POST") {
-    requirePermission(request, "edit_leads");
-    const payload = await parseJson<Record<string, unknown>>(request);
-    const project = await createProjectEntity(payload);
-    return jsonResponse({ success: true, project }, 201, request);
+  if (segments.length === 3) {
+    const projectId = segments[2];
+    if (method === "PATCH") {
+      requirePermission(request, "edit_leads");
+      const payload = await parseJson<Record<string, unknown>>(request);
+      const project = await updateProjectEntity(projectId, payload);
+      return jsonResponse({ success: true, project }, 200, request);
+    }
   }
 
   return jsonResponse({ success: false, message: "Method not allowed." }, 405, request);
@@ -2167,7 +2179,7 @@ async function handleV1(request: Request, method: string, segments: string[]) {
     case "notifications":
       return handleNotifications(request, method, segments);
     case "projects":
-      return handleProjectsEntity(request, method);
+      return handleProjectsEntity(request, method, segments);
     case "reports":
       return handleReports(request, method, segments);
     case "search":

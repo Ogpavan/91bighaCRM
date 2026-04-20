@@ -2,6 +2,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Filter, Upload, Users } from "lucide-react";
+import {
+  DataGrid,
+  GridToolbarColumnsButton,
+  GridToolbarContainer,
+  GridToolbarDensitySelector,
+  GridToolbarExport,
+  GridToolbarFilterButton,
+  GridToolbarQuickFilter,
+  type GridColDef,
+  type GridRowSelectionModel
+} from "@mui/x-data-grid";
+import { Box, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -32,7 +45,7 @@ import {
 } from "@/api/leads-service";
 import type { Lead, LeadsMetadata } from "@/api/leads-types";
 
-const TABLE_COLUMNS = 17;
+const LEADS_GRID_COLUMN_VISIBILITY_STORAGE_KEY = "crm_leads_grid_column_visibility_v1";
 const IMPORT_FIELDS: Array<{ key: LeadImportField; label: string; required?: boolean }> = [
   { key: "name", label: "Name", required: true },
   { key: "date", label: "Date" },
@@ -54,8 +67,14 @@ const formatDate = (value?: string | null) => {
   if (!value) {
     return "-";
   }
-
-  return new Date(value).toLocaleDateString();
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "-";
+  }
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const year = parsed.getFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 const formatText = (value?: string | null) => value || "-";
@@ -69,21 +88,45 @@ type ImportSummary = {
 
 function TruncatedCell({ value }: { value?: string | null }) {
   const text = value || "-";
+  const hasValue = text !== "-";
 
   return (
-    <div
-      title={text}
-      className="cursor-help break-words"
-      style={{
-        display: "-webkit-box",
-        WebkitLineClamp: 3,
-        WebkitBoxOrient: "vertical",
-        overflow: "hidden",
-        whiteSpace: "normal"
-      }}
-    >
-      {text}
-    </div>
+    <Tooltip title={hasValue ? text : ""} disableHoverListener={!hasValue} placement="top" arrow>
+      <div
+        className="cursor-help break-words"
+        style={{
+          width: "100%",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          whiteSpace: "normal"
+        }}
+      >
+        {text}
+      </div>
+    </Tooltip>
+  );
+}
+
+function LeadsGridToolbar() {
+  return (
+    <GridToolbarContainer sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <Box sx={{ minWidth: 240, flex: { xs: "1 1 100%", md: "0 0 auto" } }}>
+        <GridToolbarQuickFilter
+          debounceMs={300}
+          sx={{
+            width: { xs: "100%", md: 320 }
+          }}
+        />
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+        <GridToolbarColumnsButton />
+        <GridToolbarFilterButton />
+        <GridToolbarDensitySelector />
+        <GridToolbarExport />
+      </Box>
+    </GridToolbarContainer>
   );
 }
 
@@ -91,7 +134,7 @@ export default function LeadsListPage() {
   const [metadata, setMetadata] = useState<LeadsMetadata | null>(null);
   const [items, setItems] = useState<Lead[]>([]);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -123,6 +166,25 @@ export default function LeadsListPage() {
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [leadsGridColumnVisibilityModel, setLeadsGridColumnVisibilityModel] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") {
+      return {};
+    }
+
+    try {
+      const stored = window.localStorage.getItem(LEADS_GRID_COLUMN_VISIBILITY_STORAGE_KEY);
+      if (!stored) {
+        return {};
+      }
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === "object") {
+        return parsed as Record<string, boolean>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  });
   const [filters, setFilters] = useState({
     status: "",
     source: "",
@@ -245,21 +307,75 @@ export default function LeadsListPage() {
     });
   };
 
-  const allVisibleSelected = items.length > 0 && items.every((lead) => selectedLeadIds.includes(lead.id));
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
 
-  const toggleLeadSelection = (leadId: string) => {
-    setSelectedLeadIds((prev) => (prev.includes(leadId) ? prev.filter((id) => id !== leadId) : [...prev, leadId]));
-  };
+    try {
+      window.localStorage.setItem(LEADS_GRID_COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(leadsGridColumnVisibilityModel));
+    } catch {
+      // ignore storage errors
+    }
+  }, [leadsGridColumnVisibilityModel]);
 
-  const toggleSelectAllVisible = () => {
-    setSelectedLeadIds((prev) => {
-      if (allVisibleSelected) {
-        return prev.filter((id) => !items.some((lead) => lead.id === id));
-      }
+  const leadColumns: Array<GridColDef<Lead>> = [
+    { field: "sno", headerName: "CRN", width: 90 },
+    { field: "name", headerName: "Name", minWidth: 170, flex: 1, renderCell: (params) => <TruncatedCell value={params.row.name} /> },
+    { field: "date", headerName: "Date", width: 120, renderCell: (params) => formatDate(params.row.date) },
+    {
+      field: "mobileNumber",
+      headerName: "Mobile Number",
+      width: 140,
+      renderCell: (params) =>
+        params.row.mobileNumber ? (
+          <Tooltip title={params.row.mobileNumber} placement="top" arrow>
+            <a href={`tel:${params.row.mobileNumber}`} className="block truncate text-blue-600 hover:underline">
+              {params.row.mobileNumber}
+            </a>
+          </Tooltip>
+        ) : (
+          "-"
+        )
+    },
+    { field: "whatsappNumber", headerName: "WhatsApp Number", width: 150, renderCell: (params) => <TruncatedCell value={formatText(params.row.whatsappNumber)} /> },
+    { field: "occupation", headerName: "Occupation", width: 140, renderCell: (params) => <TruncatedCell value={formatText(params.row.occupation)} /> },
+    { field: "address", headerName: "Address", minWidth: 220, flex: 1, renderCell: (params) => <TruncatedCell value={params.row.address} />, sortable: false },
+    { field: "associate", headerName: "Associate", width: 140, renderCell: (params) => <TruncatedCell value={formatText(params.row.associate)} /> },
+    { field: "oldFollowup", headerName: "Old Followup", minWidth: 180, flex: 1, renderCell: (params) => <TruncatedCell value={params.row.oldFollowup} />, sortable: false },
+    { field: "telecallerName", headerName: "Telecaller", width: 150, renderCell: (params) => <TruncatedCell value={formatText(params.row.telecallerName)} /> },
+    { field: "projectName", headerName: "Project", minWidth: 180, flex: 1, renderCell: (params) => <TruncatedCell value={params.row.projectName} />, sortable: false },
+    { field: "recall", headerName: "Recall", width: 120, renderCell: (params) => formatDate(params.row.recall) },
+    { field: "remark", headerName: "Remark", minWidth: 200, flex: 1, renderCell: (params) => <TruncatedCell value={params.row.remark} />, sortable: false },
+    { field: "sourceName", headerName: "Source", width: 150, renderCell: (params) => <TruncatedCell value={params.row.sourceName} /> },
+    {
+      field: "statusName",
+      headerName: "Status",
+      width: 140,
+      sortComparator: (_a, _b, param1, param2) => param1.row.statusSortOrder - param2.row.statusSortOrder,
+      renderCell: (params) => <LeadStatusBadge name={params.row.statusName} sortOrder={params.row.statusSortOrder} />
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 110,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <LeadActionsMenu
+          leadId={params.row.id}
+          onAddFollowup={() => setFollowupLead(params.row)}
+          onScheduleVisit={() => void handleQuickVisit(params.row.id)}
+          onChangeStatus={() => openStatusModal(params.row)}
+          onDelete={() => setDeleteLeadTarget(params.row)}
+        />
+      )
+    }
+  ];
 
-      const merged = new Set([...prev, ...items.map((lead) => lead.id)]);
-      return Array.from(merged);
-    });
+  const onLeadsSelectionModelChange = (model: GridRowSelectionModel) => {
+    setSelectedLeadIds(model.map(String));
   };
 
   const handleBulkAssign = async () => {
@@ -353,10 +469,10 @@ export default function LeadsListPage() {
     }
   };
 
-  const openStatusModal = (lead: Lead) => {
+  function openStatusModal(lead: Lead) {
     setStatusLead(lead);
     setStatusId(String(lead.statusId));
-  };
+  }
 
   const closeStatusModal = () => {
     if (savingStatus) {
@@ -534,108 +650,55 @@ export default function LeadsListPage() {
             </div>
           ) : null}
 
-          <div className="overflow-x-auto">
-            <Table className="[&_th]:px-2 [&_td]:px-2">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <input type="checkbox" className="cursor-pointer" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
-                  </TableHead>
-                  <TableHead>SNo</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Mobile Number</TableHead>
-                  <TableHead>WhatsApp Number</TableHead>
-                  <TableHead>Occupation</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Associate</TableHead>
-                  <TableHead>Old Followup</TableHead>
-                  <TableHead>Telecaller</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Recall</TableHead>
-                  <TableHead>Remark</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-10">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading
-                  ? Array.from({ length: pageSize }).map((_, rowIndex) => (
-                      <TableRow key={`skeleton-${rowIndex}`}>
-                        {Array.from({ length: TABLE_COLUMNS }).map((__, cellIndex) => (
-                          <TableCell key={`skeleton-cell-${rowIndex}-${cellIndex}`}>
-                            <div
-                              className={`animate-pulse rounded bg-gray-200 ${
-                                cellIndex === 0
-                                  ? "h-4 w-8"
-                                  : cellIndex === 6 || cellIndex === 8 || cellIndex === 12
-                                    ? "h-4 w-32"
-                                    : cellIndex === 14
-                                      ? "h-8 w-8 rounded-full"
-                                      : "h-4 w-20"
-                              }`}
-                            />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  : items.map((lead, index) => (
-                      <TableRow key={lead.id}>
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            className="cursor-pointer"
-                            checked={selectedLeadIds.includes(lead.id)}
-                            onChange={() => toggleLeadSelection(lead.id)}
-                          />
-                        </TableCell>
-                        <TableCell>{(page - 1) * pageSize + index + 1}</TableCell>
-                        <TableCell>{lead.name}</TableCell>
-                        <TableCell>{formatDate(lead.date)}</TableCell>
-                        <TableCell>
-                          {lead.mobileNumber ? (
-                            <a href={`tel:${lead.mobileNumber}`} className="text-blue-600 hover:underline">
-                              {lead.mobileNumber}
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                        <TableCell>{formatText(lead.whatsappNumber)}</TableCell>
-                        <TableCell>{formatText(lead.occupation)}</TableCell>
-                        <TableCell className="max-w-48">
-                          <TruncatedCell value={lead.address} />
-                        </TableCell>
-                        <TableCell>{formatText(lead.associate)}</TableCell>
-                        <TableCell className="max-w-40">
-                          <TruncatedCell value={lead.oldFollowup} />
-                        </TableCell>
-                        <TableCell>{formatText(lead.telecallerName)}</TableCell>
-                        <TableCell className="max-w-48">
-                          <TruncatedCell value={lead.projectName} />
-                        </TableCell>
-                        <TableCell>{formatDate(lead.recall)}</TableCell>
-                        <TableCell className="max-w-40">
-                          <TruncatedCell value={lead.remark} />
-                        </TableCell>
-                        <TableCell>{lead.sourceName}</TableCell>
-                        <TableCell>
-                          <LeadStatusBadge name={lead.statusName} sortOrder={lead.statusSortOrder} />
-                        </TableCell>
-                        <TableCell>
-                          <LeadActionsMenu
-                            leadId={lead.id}
-                            onAddFollowup={() => setFollowupLead(lead)}
-                            onScheduleVisit={() => void handleQuickVisit(lead.id)}
-                            onChangeStatus={() => openStatusModal(lead)}
-                            onDelete={() => setDeleteLeadTarget(lead)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-              </TableBody>
-            </Table>
+          <div className="w-full overflow-x-auto">
+            <div style={{ minWidth: 1100, height: 560 }}>
+              <DataGrid
+                density="compact"
+                rows={items}
+                columns={leadColumns}
+                getRowId={(row) => row.id}
+                loading={loading}
+                checkboxSelection
+                disableRowSelectionOnClick
+                rowSelectionModel={selectedLeadIds as GridRowSelectionModel}
+                onRowSelectionModelChange={onLeadsSelectionModelChange}
+                columnVisibilityModel={leadsGridColumnVisibilityModel}
+                onColumnVisibilityModelChange={setLeadsGridColumnVisibilityModel}
+                slots={{ toolbar: LeadsGridToolbar }}
+                hideFooter
+                sx={(theme) => ({
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: "0.375rem",
+                  fontSize: "0.75rem",
+                  "& .MuiDataGrid-columnHeaders": {
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
+                    borderBottom: `1px solid ${alpha(theme.palette.primary.contrastText, 0.2)}`
+                  },
+                  "& .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 700
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(odd) .MuiDataGrid-cell": {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(even) .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.background.paper
+                  },
+                  "& .MuiDataGrid-row:hover .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.action.hover
+                  },
+                  "& .MuiDataGrid-iconButtonContainer, & .MuiDataGrid-menuIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-filterIcon": {
+                    color: theme.palette.primary.contrastText
+                  },
+                  "& .MuiDataGrid-toolbarContainer": {
+                    padding: "0.5rem"
+                  },
+                  "& .MuiDataGrid-toolbarContainer .MuiButtonBase-root": {
+                    fontSize: "0.75rem"
+                  }
+                })}
+              />
+            </div>
           </div>
 
           {loading ? <p className="text-xs text-gray-500">Loading leads...</p> : null}

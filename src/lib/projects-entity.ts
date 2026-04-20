@@ -153,3 +153,45 @@ export async function createProjectEntity(input: CreateProjectEntityInput) {
     return mapProjectRow(result.rows[0]);
   });
 }
+
+export async function updateProjectEntity(id: string, input: Partial<CreateProjectEntityInput>) {
+  await ensureProjectsEntitySchema();
+
+  return withDbClient(async (client) => {
+    const name = getOptionalString(input.name);
+    const location = getOptionalString(input.location);
+    const status = getOptionalString(input.status);
+    const description = getOptionalString(input.description);
+
+    const result = await client.query<ProjectRow>(
+      `
+        update projects
+        set
+          name = coalesce($2, name),
+          location = coalesce($3, location),
+          status = coalesce($4, status),
+          description = coalesce($5, description),
+          updated_at = now()
+        where id = $1
+        returning
+          id::text as id,
+          project_code,
+          name,
+          slug,
+          location,
+          status,
+          description,
+          created_at::text as created_at,
+          updated_at::text as updated_at,
+          (select count(*)::text from properties where project_id = $1 and deleted_at is null) as properties_count
+      `,
+      [Number(id), name, location, status, description]
+    );
+
+    if (!result.rows.length) {
+      throw new Error("Project not found.");
+    }
+
+    return mapProjectRow(result.rows[0]);
+  });
+}

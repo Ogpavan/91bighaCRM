@@ -349,10 +349,17 @@ async function getLeadRecordById(client: Queryable, leadId: number) {
   return result.rows[0] ? mapLeadRow(result.rows[0]) : null;
 }
 
-export async function ensureCrmLeadsSchema() {
-  await ensureCrmAuthSchema();
+let leadsSchemaPromise: Promise<void> | null = null;
 
-  await withDbClient(async (client) => {
+export async function ensureCrmLeadsSchema() {
+  if (leadsSchemaPromise) {
+    return leadsSchemaPromise;
+  }
+
+  leadsSchemaPromise = (async () => {
+    await ensureCrmAuthSchema();
+
+    await withDbClient(async (client) => {
     await client.query(`
       create table if not exists crm_lead_statuses (
         id bigserial primary key,
@@ -496,6 +503,9 @@ export async function ensureCrmLeadsSchema() {
       set name = excluded.name
     `);
   });
+  })();
+
+  return leadsSchemaPromise;
 }
 
 export async function getLeadsMetadata() {

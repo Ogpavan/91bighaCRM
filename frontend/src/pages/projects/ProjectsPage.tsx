@@ -2,18 +2,22 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Filter, X } from "lucide-react";
+import {
+  DataGrid,
+  GridToolbarColumnsButton,
+  GridToolbarContainer,
+  GridToolbarDensitySelector,
+  GridToolbarExport,
+  GridToolbarFilterButton,
+  GridToolbarQuickFilter,
+  type GridColDef
+} from "@mui/x-data-grid";
+import { Box, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
 import Pagination from "@/components/Pagination";
 import {
   createProject,
@@ -168,13 +172,52 @@ function formatPublishedDate(value: string | null) {
   return dateFormatter.format(parsed);
 }
 
+function TruncatedCell({ value }: { value?: string | null }) {
+  const text = value?.trim() ? value : "-";
+  const hasValue = text !== "-";
+
+  return (
+    <Tooltip title={hasValue ? text : ""} disableHoverListener={!hasValue} placement="top" arrow>
+      <div
+        className="cursor-help break-words"
+        style={{
+          width: "100%",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+          whiteSpace: "normal"
+        }}
+      >
+        {text}
+      </div>
+    </Tooltip>
+  );
+}
+
+function ProjectsGridToolbar() {
+  return (
+    <GridToolbarContainer sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <Box sx={{ minWidth: 240, flex: { xs: "1 1 100%", md: "0 0 auto" } }}>
+        <GridToolbarQuickFilter debounceMs={300} sx={{ width: { xs: "100%", md: 320 } }} />
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+        <GridToolbarColumnsButton />
+        <GridToolbarFilterButton />
+        <GridToolbarDensitySelector />
+        <GridToolbarExport />
+      </Box>
+    </GridToolbarContainer>
+  );
+}
+
 export default function ProjectsPage() {
   const [panelMode, setPanelMode] = useState<"create" | "import">("create");
   const [items, setItems] = useState<ProjectListing[]>([]);
   const [propertyTypes, setPropertyTypes] = useState<ProjectPropertyType[]>([]);
   const [filterOptions, setFilterOptions] = useState<ProjectFilterOptions>(EMPTY_FILTER_OPTIONS);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -212,6 +255,65 @@ export default function ProjectsPage() {
     }),
     [filters, page, pageSize]
   );
+
+  const projectColumns: Array<GridColDef<ProjectListing>> = [
+    {
+      field: "propertyCode",
+      headerName: "Code",
+      minWidth: 140,
+      renderCell: (params) => (
+        <div className="w-full">
+          <Link
+            to={`/properties/${params.row.id}/edit`}
+            className="font-medium text-blue-700 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-900 dark:text-blue-300 dark:decoration-blue-600 dark:hover:text-blue-200"
+          >
+            {params.row.propertyCode}
+          </Link>
+        </div>
+      )
+    },
+    { field: "slug", headerName: "Slug", minWidth: 170, renderCell: (params) => <TruncatedCell value={params.row.slug} /> },
+    {
+      field: "title",
+      headerName: "Title",
+      minWidth: 220,
+      flex: 1,
+      renderCell: (params) => <TruncatedCell value={params.row.title} />
+    },
+    { field: "propertyType", headerName: "Property Type", minWidth: 150, renderCell: (params) => <TruncatedCell value={params.row.propertyType} /> },
+    { field: "description", headerName: "Description", minWidth: 240, flex: 1, sortable: false, renderCell: (params) => <TruncatedCell value={params.row.description} /> },
+    { field: "listingType", headerName: "Listing Type", minWidth: 130, renderCell: (params) => <span className="capitalize">{params.row.listingType}</span> },
+    { field: "status", headerName: "Status", minWidth: 120, renderCell: (params) => <span className="capitalize">{params.row.status}</span> },
+    { field: "publishedAt", headerName: "Published Date", minWidth: 140, renderCell: (params) => formatPublishedDate(params.row.publishedAt) },
+    { field: "locality", headerName: "Locality", minWidth: 150, renderCell: (params) => <TruncatedCell value={params.row.locality} /> },
+    { field: "city", headerName: "City", minWidth: 130, renderCell: (params) => <TruncatedCell value={params.row.city} /> },
+    { field: "state", headerName: "State", minWidth: 130, renderCell: (params) => <TruncatedCell value={params.row.state} /> },
+    { field: "addressLine1", headerName: "Address", minWidth: 240, flex: 1, sortable: false, renderCell: (params) => <TruncatedCell value={params.row.addressLine1} /> },
+    { field: "bedrooms", headerName: "Bedrooms", minWidth: 110, valueGetter: (params) => (params.row.bedrooms != null ? String(params.row.bedrooms) : "-") },
+    { field: "bathrooms", headerName: "Bathrooms", minWidth: 110, valueGetter: (params) => (params.row.bathrooms != null ? String(params.row.bathrooms) : "-") },
+    {
+      field: "builtupArea",
+      headerName: "Built-up Area",
+      minWidth: 140,
+      valueGetter: (params) =>
+        params.row.builtupArea != null ? `${params.row.builtupArea} ${params.row.builtupAreaUnit || "sqft"}` : "-"
+    },
+    { field: "price", headerName: "Price", minWidth: 150, valueGetter: (params) => formatPrice(params.row) },
+    {
+      field: "rentAmount",
+      headerName: "Rent Amount",
+      minWidth: 150,
+      valueGetter: (params) => (params.row.rentAmount != null ? currency.format(params.row.rentAmount) : "-")
+    },
+    {
+      field: "saleAmount",
+      headerName: "Sale Amount",
+      minWidth: 150,
+      valueGetter: (params) => (params.row.priceAmount != null ? currency.format(params.row.priceAmount) : "-")
+    },
+    { field: "isFeatured", headerName: "Featured", minWidth: 110, valueGetter: (params) => (params.row.isFeatured ? "Yes" : "No") },
+    { field: "isVerified", headerName: "Verified", minWidth: 110, valueGetter: (params) => (params.row.isVerified ? "Yes" : "No") }
+  ];
 
   const loadProjects = async () => {
     setLoading(true);
@@ -575,119 +677,62 @@ export default function ProjectsPage() {
 
           {success ? <p className="mb-3 text-xs text-green-600">{success}</p> : null}
           {error && !panelOpen ? <p className="mb-3 text-xs text-red-600">{error}</p> : null}
-          {loading ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Property</TableHead>
-                    <TableHead>Listing</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Specs</TableHead>
-                    <TableHead>Pricing</TableHead>
-                    <TableHead>Visibility</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <TableRow key={`property-skeleton-${index}`}>
-                      <TableCell><div className="h-4 w-24 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-36 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-24 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-32 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-28 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-24 animate-pulse rounded bg-gray-200" /></TableCell>
-                      <TableCell><div className="h-4 w-24 animate-pulse rounded bg-gray-200" /></TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : null}
-          {!loading ? (
-            <div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Property</TableHead>
-                      <TableHead>Listing</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Specs</TableHead>
-                      <TableHead>Pricing</TableHead>
-                      <TableHead>Visibility</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div>
-                            <Link
-                              to={`/properties/${item.id}/edit`}
-                              className="font-medium text-blue-700 underline decoration-blue-300 underline-offset-2 transition hover:text-blue-900 dark:text-blue-300 dark:decoration-blue-600 dark:hover:text-blue-200"
-                            >
-                              {item.propertyCode}
-                            </Link>
-                            <p className="text-[11px] text-gray-500">#{item.slug}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{item.title}</p>
-                            <p className="text-[11px] text-gray-500">{item.propertyType}</p>
-                            {item.description ? <p className="max-w-xs truncate text-[11px] text-gray-500">{item.description}</p> : null}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="capitalize">{item.listingType}</p>
-                          <p className="text-[11px] capitalize text-gray-500">{item.status}</p>
-                          <p className="text-[11px] text-gray-500">{formatPublishedDate(item.publishedAt)}</p>
-                        </TableCell>
-                        <TableCell>
-                          <p>{[item.locality, item.city].filter(Boolean).join(", ") || "-"}</p>
-                          <p className="text-[11px] text-gray-500">{item.state || "-"}</p>
-                          {item.addressLine1 ? <p className="max-w-xs truncate text-[11px] text-gray-500">{item.addressLine1}</p> : null}
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-[11px] text-gray-600 dark:text-slate-300">
-                            {item.bedrooms != null ? `${item.bedrooms} BHK` : "-"} | {item.bathrooms != null ? `${item.bathrooms} Bath` : "-"}
-                          </p>
-                          <p className="text-[11px] text-gray-600 dark:text-slate-300">
-                            {item.builtupArea != null ? `${item.builtupArea} ${item.builtupAreaUnit || "sqft"}` : "Area: -"}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-medium">{formatPrice(item)}</p>
-                          {item.listingType !== "rent" && item.rentAmount != null ? (
-                            <p className="text-[11px] text-gray-500">Rent: {currency.format(item.rentAmount)}</p>
-                          ) : null}
-                          {item.listingType !== "sale" && item.priceAmount != null ? (
-                            <p className="text-[11px] text-gray-500">Sale: {currency.format(item.priceAmount)}</p>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-[11px] text-gray-600 dark:text-slate-300">{item.isFeatured ? "Featured" : "Standard"}</p>
-                          <p className="text-[11px] text-gray-600 dark:text-slate-300">{item.isVerified ? "Verified" : "Unverified"}</p>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                pageSize={pageSize}
-                onPageChange={setPage}
-                onPageSizeChange={(nextSize) => {
-                  setPage(1);
-                  setPageSize(nextSize);
-                }}
+          <div className="w-full">
+            <div style={{ height: 560 }}>
+              <DataGrid
+                density="compact"
+                rows={items}
+                columns={projectColumns}
+                getRowId={(row) => row.id}
+                loading={loading}
+                disableRowSelectionOnClick
+                slots={{ toolbar: ProjectsGridToolbar }}
+                hideFooter
+                sx={(theme) => ({
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: "0.375rem",
+                  fontSize: "0.75rem",
+                  "& .MuiDataGrid-columnHeaders": {
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
+                    borderBottom: `1px solid ${alpha(theme.palette.primary.contrastText, 0.2)}`
+                  },
+                  "& .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 700
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(odd) .MuiDataGrid-cell": {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(even) .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.background.paper
+                  },
+                  "& .MuiDataGrid-row:hover .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.action.hover
+                  },
+                  "& .MuiDataGrid-iconButtonContainer, & .MuiDataGrid-menuIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-filterIcon": {
+                    color: theme.palette.primary.contrastText
+                  },
+                  "& .MuiDataGrid-toolbarContainer": {
+                    padding: "0.5rem"
+                  },
+                  "& .MuiDataGrid-toolbarContainer .MuiButtonBase-root": {
+                    fontSize: "0.75rem"
+                  }
+                })}
               />
             </div>
+          </div>
+          {!loading ? (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(nextSize) => {
+                setPage(1);
+                setPageSize(nextSize);
+              }}
+            />
           ) : null}
         </CardContent>
       </Card>

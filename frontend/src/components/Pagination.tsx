@@ -1,5 +1,4 @@
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { MenuItem, Pagination as MuiPagination, Select, Stack, Typography } from "@mui/material";
 
 type PaginationProps = {
   page: number;
@@ -9,11 +8,6 @@ type PaginationProps = {
   pageSizeOptions?: number[];
   onPageSizeChange?: (pageSize: number) => void;
 };
-
-function getVisiblePages(page: number, totalPages: number) {
-  const pages = new Set<number>([1, totalPages, page - 1, page, page + 1]);
-  return Array.from(pages).filter((value) => value >= 1 && value <= totalPages).sort((a, b) => a - b);
-}
 
 export default function Pagination({
   page,
@@ -25,62 +19,68 @@ export default function Pagination({
 }: PaginationProps) {
   if (totalPages <= 1) {
     return onPageSizeChange && pageSize ? (
-      <div className="flex items-center justify-end pt-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Rows per page</span>
-          <Select className="h-8 w-20 text-xs" value={String(pageSize)} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
-            {pageSizeOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </div>
+      <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center" sx={{ pt: 1.5 }}>
+        <Typography variant="caption" color="text.secondary">
+          Rows per page
+        </Typography>
+        <Select
+          size="small"
+          value={pageSize}
+          onChange={(event) => onPageSizeChange(Number(event.target.value))}
+          sx={{ minWidth: 84, fontSize: "0.75rem" }}
+        >
+          {pageSizeOptions.map((option) => (
+            <MenuItem key={option} value={option}>
+              {option}
+            </MenuItem>
+          ))}
+        </Select>
+      </Stack>
     ) : null;
   }
 
-  const visiblePages = getVisiblePages(page, totalPages);
-
   return (
-    <div className="flex items-center justify-between pt-3">
-      <p className="text-xs text-gray-500">
+    <Stack
+      direction={{ xs: "column", md: "row" }}
+      justifyContent="space-between"
+      alignItems={{ xs: "flex-start", md: "center" }}
+      spacing={1.5}
+      sx={{ pt: 1.5 }}
+    >
+      <Typography variant="caption" color="text.secondary">
         Page {page} of {totalPages}
-      </p>
-      <div className="flex items-center gap-2">
+      </Typography>
+      <Stack direction="row" spacing={1.5} alignItems="center">
         {onPageSizeChange && pageSize ? (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Rows per page</span>
-            <Select className="h-8 w-20 text-xs" value={String(pageSize)} onChange={(event) => onPageSizeChange(Number(event.target.value))}>
+          <>
+            <Typography variant="caption" color="text.secondary">
+              Rows per page
+            </Typography>
+            <Select
+              size="small"
+              value={pageSize}
+              onChange={(event) => onPageSizeChange(Number(event.target.value))}
+              sx={{ minWidth: 84, fontSize: "0.75rem" }}
+            >
               {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>
+                <MenuItem key={option} value={option}>
                   {option}
-                </option>
+                </MenuItem>
               ))}
             </Select>
-          </div>
+          </>
         ) : null}
-        <div className="flex items-center gap-1">
-          {visiblePages.map((pageNumber, index) => {
-            const previous = visiblePages[index - 1];
-            const showGap = previous && pageNumber - previous > 1;
-
-            return (
-              <div key={pageNumber} className="flex items-center gap-1">
-                {showGap ? <span className="px-1 text-xs text-gray-400">...</span> : null}
-                <Button
-                  variant={pageNumber === page ? "default" : "outline"}
-                  size="sm"
-                  className="min-w-8 px-2"
-                  onClick={() => onPageChange(pageNumber)}
-                >
-                  {pageNumber}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+        <MuiPagination
+          page={page}
+          count={totalPages}
+          color="primary"
+          size="small"
+          shape="rounded"
+          siblingCount={1}
+          boundaryCount={1}
+          onChange={(_event, value) => onPageChange(value)}
+        />
+      </Stack>
+    </Stack>
   );
 }

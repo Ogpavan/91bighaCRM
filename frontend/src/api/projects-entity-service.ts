@@ -42,3 +42,11 @@ export async function createProjectEntity(payload: CreateProjectEntityPayload) {
   });
   return response.project;
 }
+
+export async function updateProjectEntity(id: string, payload: Partial<CreateProjectEntityPayload>) {
+  const response = await apiRequest<ProjectEntityResponse>(`/api/v1/projects/${id}`, {
+    method: "PATCH",
+    body: payload
+  });
+  return response.project;
+}
