@@ -1891,7 +1891,7 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
       }
     });
 
-    const manualMappings: Partial<Record<string, string>> = {};
+    const manualMappings: Record<string, string> = {};
     for (const [key, value] of form.entries()) {
       if (key.startsWith("mapping_") && typeof value === "string" && value.trim()) {
         manualMappings[key.replace("mapping_", "")] = value.trim();
