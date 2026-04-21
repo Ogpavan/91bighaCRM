@@ -153,7 +153,6 @@ export default function Reports() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const sourcePieData = sourcePerformance.map((item) => ({ name: item.sourceName, value: item.totalLeads }));
   const revenueLineData = salesSummary.revenueByMonth.map((item) => ({ label: item.month, value: item.revenue }));
   const agentBarData = agentPerformance.slice(0, 8).map((item) => ({ label: item.agentName, value: item.revenueGenerated }));
   const taskTypePieData = taskSummary.tasksByType.map((item) => ({ name: item.type, value: item.total }));
@@ -269,11 +268,7 @@ export default function Reports() {
             <KpiCard label="Overdue Tasks" value={String(taskSummary.overdueTasks)} tone="danger" />
           </div>
           <div className="grid gap-4 xl:grid-cols-3">
-            <Card>
-              <CardHeader className="p-4 pb-2"><CardTitle className="text-sm">Leads by Source</CardTitle></CardHeader>
-              <CardContent className="p-4 pt-0"><PieChartCard data={sourcePieData} colors={["#0c66e4", "#16a34a", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4"]} /></CardContent>
-            </Card>
-            <Card className="xl:col-span-2">
+            <Card className="xl:col-span-3">
               <CardHeader className="p-4 pb-2"><CardTitle className="text-sm">Revenue by Month</CardTitle></CardHeader>
               <CardContent className="p-4 pt-0"><RevenueLineChart data={revenueLineData} /></CardContent>
             </Card>

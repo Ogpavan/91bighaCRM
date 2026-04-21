@@ -1,17 +1,21 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
+import {
+  DataGrid,
+  GridToolbarColumnsButton,
+  GridToolbarContainer,
+  GridToolbarDensitySelector,
+  GridToolbarExport,
+  GridToolbarFilterButton,
+  GridToolbarQuickFilter,
+  type GridColDef
+} from "@mui/x-data-grid";
+import { Box } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
 import Pagination from "@/components/Pagination";
 import TaskForm from "@/components/tasks/TaskForm";
 import TaskDetailContent from "@/components/tasks/TaskDetailContent";
@@ -22,37 +26,25 @@ import { getUsers } from "@/api/users-service";
 import { formatTaskDateTime } from "@/lib/tasks-formatters";
 import { completeTask, getTaskById, getTaskMeta, getTasks, updateTask } from "@/api/tasks-service";
 import type { Task, TaskDetail } from "@/api/tasks-types";
-import { cn } from "@/lib/utils";
 
-const today = new Date().toISOString().slice(0, 10);
-const TABLE_COLUMNS = 8;
-const TABLE_SKELETON_ROWS = 6;
-
-function TaskTableSkeleton() {
+function TasksGridToolbar() {
   return (
-    <Table className="[&_th]:px-2 [&_td]:px-2">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Title</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Assigned To</TableHead>
-          <TableHead>Due Date</TableHead>
-          <TableHead>Priority</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Lead</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {Array.from({ length: TABLE_SKELETON_ROWS }).map((_, index) => (
-          <TableRow key={index}>
-            <TableCell colSpan={TABLE_COLUMNS}>
-              <div className="h-11 animate-pulse rounded-sm bg-gray-100" />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <GridToolbarContainer sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <Box sx={{ minWidth: 240, flex: { xs: "1 1 100%", md: "0 0 auto" } }}>
+        <GridToolbarQuickFilter
+          debounceMs={300}
+          sx={{
+            width: { xs: "100%", md: 320 }
+          }}
+        />
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", justifyContent: { xs: "flex-start", md: "flex-end" } }}>
+        <GridToolbarColumnsButton />
+        <GridToolbarFilterButton />
+        <GridToolbarDensitySelector />
+        <GridToolbarExport />
+      </Box>
+    </GridToolbarContainer>
   );
 }
 
@@ -133,6 +125,66 @@ export default function AllTasksPage() {
     setDetailTask(updatedTask);
   };
 
+  const taskColumns: Array<GridColDef<Task>> = [
+      { field: "title", headerName: "Title", minWidth: 300, flex: 1.2 },
+      {
+        field: "type",
+        headerName: "Type",
+        width: 120,
+        renderCell: (params) => <TaskTypeBadge type={params.row.type} />
+      },
+      {
+        field: "assignedToName",
+        headerName: "Assigned To",
+        minWidth: 120,
+        flex: 0.6,
+        renderCell: (params) => params.row.assignedToName || "-"
+      },
+      {
+        field: "dueDate",
+        headerName: "Due Date",
+        width: 140,
+        renderCell: (params) => {
+          const overdue = Boolean(
+            params.row.dueDate && new Date(params.row.dueDate).getTime() < Date.now() && params.row.status !== "Completed"
+          );
+          return <span className={overdue ? "text-red-600" : ""}>{formatTaskDateTime(params.row.dueDate)}</span>;
+        }
+      },
+      {
+        field: "priority",
+        headerName: "Priority",
+        width: 120,
+        renderCell: (params) => <TaskPriorityBadge priority={params.row.priority} />
+      },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 130,
+        renderCell: (params) => <TaskStatusBadge status={params.row.status} />
+      },
+      {
+        field: "leadName",
+        headerName: "Lead",
+        minWidth: 100,
+        flex: 0.5,
+        renderCell: (params) => params.row.leadName || "-"
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 110,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => (
+          <Button variant="outline" size="sm" onClick={() => void openDetailModal(params.row.id)}>
+            View
+          </Button>
+        )
+      }
+    ];
+
   useEffect(() => {
     void load();
   }, [page, filters]);
@@ -177,45 +229,52 @@ export default function AllTasksPage() {
             </div>
           </div>
 
-          {loading ? (
-            <TaskTableSkeleton />
-          ) : (
-            <Table className="[&_th]:px-2 [&_td]:px-2">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((task) => {
-                  const overdue = Boolean(task.dueDate && new Date(task.dueDate).getTime() < Date.now() && task.status !== "Completed");
-                  return (
-                    <TableRow key={task.id} className={cn(getTaskStatusRowClassName(task.status))}>
-                      <TableCell>{task.title}</TableCell>
-                      <TableCell><TaskTypeBadge type={task.type} /></TableCell>
-                      <TableCell>{task.assignedToName || "-"}</TableCell>
-                      <TableCell className={overdue ? "text-red-600" : ""}>{formatTaskDateTime(task.dueDate)}</TableCell>
-                      <TableCell><TaskPriorityBadge priority={task.priority} /></TableCell>
-                      <TableCell><TaskStatusBadge status={task.status} /></TableCell>
-                      <TableCell>{task.leadName || "-"}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" onClick={() => void openDetailModal(task.id)}>
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
+          <div className="w-full overflow-x-auto">
+            <div style={{ minWidth: 1050, height: 520 }}>
+              <DataGrid
+                density="compact"
+                rows={items}
+                columns={taskColumns}
+                getRowId={(row) => row.id}
+                loading={loading}
+                disableRowSelectionOnClick
+                hideFooter
+                slots={{ toolbar: TasksGridToolbar }}
+                getRowClassName={(params) => getTaskStatusRowClassName(params.row.status)}
+                sx={(theme) => ({
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: "0.375rem",
+                  fontSize: "0.75rem",
+                  "& .MuiDataGrid-columnHeaders": {
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
+                    borderBottom: `1px solid ${alpha(theme.palette.primary.contrastText, 0.2)}`
+                  },
+                  "& .MuiDataGrid-columnHeaderTitle": {
+                    fontWeight: 700
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(odd) .MuiDataGrid-cell": {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                  },
+                  "& .MuiDataGrid-row:nth-of-type(even) .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.background.paper
+                  },
+                  "& .MuiDataGrid-row:hover .MuiDataGrid-cell": {
+                    backgroundColor: theme.palette.action.hover
+                  },
+                  "& .MuiDataGrid-iconButtonContainer, & .MuiDataGrid-menuIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-filterIcon": {
+                    color: theme.palette.primary.contrastText
+                  },
+                  "& .MuiDataGrid-toolbarContainer": {
+                    padding: "0.5rem"
+                  },
+                  "& .MuiDataGrid-toolbarContainer .MuiButtonBase-root": {
+                    fontSize: "0.75rem"
+                  }
                 })}
-              </TableBody>
-            </Table>
-          )}
+              />
+            </div>
+          </div>
 
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </CardContent>

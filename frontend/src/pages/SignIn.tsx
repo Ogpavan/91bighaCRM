@@ -46,14 +46,14 @@ export default function SignIn() {
     <AuthShell
       title="Sign in"
       subtitle="Welcome back. Enter your credentials to continue."
-      footer={
-        <p className="text-center">
-          Don&apos;t have an account?{" "}
-          <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-700">
-            Create one
-          </Link>
-        </p>
-      }
+      // footer={
+      //   <p className="text-center">
+      //     Don&apos;t have an account?{" "}
+      //     <Link to="/signup" className="font-medium text-blue-600 hover:text-blue-700">
+      //       Create one
+      //     </Link>
+      //   </p>
+      // }
       legal={
         <>
           By signing in, you agree to our{" "}

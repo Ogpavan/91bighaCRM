@@ -935,7 +935,7 @@ export default async function HomePage() {
 						<div className="buy-property-item text-center mb-lg-0 mb-md-0  mb-4 aos" data-aos="fade-down" data-aos-duration="1000">
 							<div className="img-card overflow-hidden text-center">
 								<Link href="/buy-property-grid-sidebar">
-									<img src="/assets/img/home/city/property-img-1.jpg" alt="Buy a Property" />
+									<img className="home-property-option-img" src="/assets/img/home/city/property-img-1.jpg" alt="Buy a Property" />
 								</Link>
 							</div>
 							<div className="buy-property bg-white d-flex align-items-center justify-content-between">
@@ -952,7 +952,7 @@ export default async function HomePage() {
 						<div className="buy-property-item mb-lg-0 mb-4 text-center aos" data-aos="fade-up" data-aos-duration="1000">
 							<div className="img-card overflow-hidden text-center">
 								<Link href="/contact-us">
-									<img src="/assets/img/home/city/property-img-2.jpg" alt="Sell a Property" />
+									<img className="home-property-option-img" src="/assets/img/home/city/property-img-2.jpg" alt="Sell a Property" />
 								</Link>
 							</div>
 							<div className="buy-property bg-white d-flex align-items-center justify-content-between">
@@ -969,7 +969,7 @@ export default async function HomePage() {
 						<div className="buy-property-item mb-0 text-center aos" data-aos="fade-down" data-aos-duration="1000">
 							<div className="img-card overflow-hidden text-center">
 								<Link href="/rent-property-grid-sidebar">
-									<img src="/assets/img/home/city/property-img-3.jpg" alt="Rent a Property" />
+									<img className="home-property-option-img" src="/assets/img/home/city/property-img-3.jpg" alt="Rent a Property" />
 								</Link>
 							</div>
 							<div className="buy-property bg-white d-flex align-items-center justify-content-between">

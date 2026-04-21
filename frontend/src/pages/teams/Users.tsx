@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { DataGrid, type GridColDef } from "@mui/x-data-grid";
+import { alpha } from "@mui/material/styles";
 import { useAuth } from "@/components/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -102,6 +104,68 @@ export default function Users() {
     }
   };
 
+  const userColumns: Array<GridColDef<UserItem>> = [
+    { field: "fullName", headerName: "Name", minWidth: 180, flex: 1 },
+    { field: "email", headerName: "Email", minWidth: 220, flex: 1 },
+    {
+      field: "phone",
+      headerName: "Phone",
+      width: 150,
+      renderCell: (params) => params.row.phone || "-"
+    },
+    {
+      field: "role",
+      headerName: "Role",
+      width: 140,
+      renderCell: (params) => <Badge className={pickRoleBadgeClass(params.row.role)}>{params.row.role}</Badge>
+    },
+    {
+      field: "team",
+      headerName: "Team",
+      minWidth: 160,
+      flex: 1,
+      renderCell: (params) => params.row.team?.name || "-"
+    },
+    {
+      field: "isActive",
+      headerName: "Status",
+      width: 130,
+      renderCell: (params) => (
+        <Badge variant={params.row.isActive ? "success" : "secondary"}>
+          {params.row.isActive ? "Active" : "Inactive"}
+        </Badge>
+      )
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 180,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      renderCell: (params) => (
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="h-7 text-[11px]"
+            onClick={() => openEditRole(params.row)}
+            disabled={!hasPermission("manage_users")}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            className="h-7 text-[11px] text-red-600 hover:bg-gray-100"
+            onClick={() => void handleDisable(params.row.id)}
+            disabled={!hasPermission("manage_users") || !params.row.isActive}
+          >
+            Disable
+          </Button>
+        </div>
+      )
+    }
+  ];
+
   return (
     <Card className="rounded-sm">
       <CardHeader className="p-6 pb-3">
@@ -120,55 +184,42 @@ export default function Users() {
         {!loading && !error ? (
           <div className="space-y-3">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-200 text-gray-500">
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Email</th>
-                    <th className="px-3 py-2 font-medium">Role</th>
-                    <th className="px-3 py-2 font-medium">Team</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
-                    <th className="px-3 py-2 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((user) => (
-                    <tr key={user.id} className="border-b border-gray-100">
-                      <td className="px-3 py-2 text-gray-700">{user.fullName}</td>
-                      <td className="px-3 py-2 text-gray-600">{user.email}</td>
-                      <td className="px-3 py-2">
-                        <Badge className={pickRoleBadgeClass(user.role)}>{user.role}</Badge>
-                      </td>
-                      <td className="px-3 py-2 text-gray-600">{user.team?.name || "-"}</td>
-                      <td className="px-3 py-2">
-                        <Badge variant={user.isActive ? "success" : "secondary"}>
-                          {user.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="h-7 text-[11px]"
-                            onClick={() => openEditRole(user)}
-                            disabled={!hasPermission("manage_users")}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="h-7 text-[11px] text-red-600 hover:bg-gray-100"
-                            onClick={() => void handleDisable(user.id)}
-                            disabled={!hasPermission("manage_users") || !user.isActive}
-                          >
-                            Disable
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ minWidth: 950, height: 420 }}>
+                <DataGrid
+                  density="compact"
+                  rows={items}
+                  columns={userColumns}
+                  getRowId={(row) => row.id}
+                  loading={loading}
+                  disableRowSelectionOnClick
+                  hideFooter
+                  sx={(theme) => ({
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: "0.375rem",
+                    fontSize: "0.75rem",
+                    "& .MuiDataGrid-columnHeaders": {
+                      backgroundColor: theme.palette.primary.main,
+                      color: theme.palette.primary.contrastText,
+                      borderBottom: `1px solid ${alpha(theme.palette.primary.contrastText, 0.2)}`
+                    },
+                    "& .MuiDataGrid-columnHeaderTitle": {
+                      fontWeight: 700
+                    },
+                    "& .MuiDataGrid-row:nth-of-type(odd) .MuiDataGrid-cell": {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                    },
+                    "& .MuiDataGrid-row:nth-of-type(even) .MuiDataGrid-cell": {
+                      backgroundColor: theme.palette.background.paper
+                    },
+                    "& .MuiDataGrid-row:hover .MuiDataGrid-cell": {
+                      backgroundColor: theme.palette.action.hover
+                    },
+                    "& .MuiDataGrid-iconButtonContainer, & .MuiDataGrid-menuIcon, & .MuiDataGrid-sortIcon, & .MuiDataGrid-filterIcon": {
+                      color: theme.palette.primary.contrastText
+                    }
+                  })}
+                />
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">

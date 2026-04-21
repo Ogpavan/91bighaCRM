@@ -61,7 +61,6 @@ type AuthTokenPayload = {
   userId: string;
   role: string;
   permissions: string[];
-  exp: number;
 };
 
 export type CrmAuthTokenPayload = AuthTokenPayload;
@@ -167,8 +166,7 @@ export function createAuthToken(user: Pick<CrmAuthUser, "id" | "role">, permissi
   const payload: AuthTokenPayload = {
     userId: String(user.id),
     role: user.role,
-    permissions,
-    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+    permissions
   };
   const payloadSegment = base64UrlEncode(JSON.stringify(payload));
   const input = `${header}.${payloadSegment}`;
@@ -200,19 +198,14 @@ export function verifyAuthToken(token: string): CrmAuthTokenPayload {
     throw new AuthError("Invalid authentication token.", 401);
   }
 
-  if (!payload.userId || !payload.role || !Array.isArray(payload.permissions) || typeof payload.exp !== "number") {
+  if (!payload.userId || !payload.role || !Array.isArray(payload.permissions)) {
     throw new AuthError("Invalid authentication token.", 401);
-  }
-
-  if (payload.exp <= Math.floor(Date.now() / 1000)) {
-    throw new AuthError("Authentication token has expired.", 401);
   }
 
   return {
     userId: String(payload.userId),
     role: String(payload.role),
-    permissions: payload.permissions.map((permission) => String(permission)),
-    exp: payload.exp
+    permissions: payload.permissions.map((permission) => String(permission))
   };
 }
 

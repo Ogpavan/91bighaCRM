@@ -762,7 +762,7 @@ async function handleTasks(request: Request, method: string, segments: string[])
     }
   }
 
-  if (segments[3] === "complete" && method === "POST") {
+  if (segments[3] === "complete" && (method === "POST" || method === "PUT")) {
     requirePermission(request, "edit_tasks");
     const task = await completeTask(taskId, { userId: auth.userId, role: auth.role });
     return jsonResponse({ success: true, task }, 200, request);
@@ -1890,6 +1890,38 @@ async function handlePropertiesApi(request: Request, method: string, segments: s
         }
       }
     });
+
+    const manualMappings: Partial<Record<string, string>> = {};
+    for (const [key, value] of form.entries()) {
+      if (key.startsWith("mapping_") && typeof value === "string" && value.trim()) {
+        manualMappings[key.replace("mapping_", "")] = value.trim();
+      }
+    }
+
+    Object.entries(manualMappings).forEach(([field, header]) => {
+      if (headers.includes(header)) {
+        headerMap.set(field, header);
+      }
+    });
+
+    if (segments[2] === "preview") {
+      const suggestedMappings: Partial<Record<string, string>> = {};
+      headerMap.forEach((header, field) => {
+        suggestedMappings[field] = header;
+      });
+
+      return jsonResponse(
+        {
+          ok: true,
+          totalRows: rows.length,
+          headers,
+          sampleRows: rows.slice(0, 10),
+          suggestedMappings
+        },
+        200,
+        request
+      );
+    }
 
     const propertyTypes = await getPropertyTypeOptions();
     const propertyTypeByName = new Map(

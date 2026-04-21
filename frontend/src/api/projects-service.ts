@@ -175,6 +175,15 @@ export type ImportPropertiesResponse = {
   error?: string;
 };
 
+export type ImportPropertiesPreview = {
+  ok: boolean;
+  totalRows: number;
+  headers: string[];
+  sampleRows: Array<Record<string, unknown>>;
+  suggestedMappings: Partial<Record<string, string>>;
+  error?: string;
+};
+
 export async function getProjects(params?: ProjectsFilters): Promise<{
   items: ProjectListing[];
   propertyTypes: ProjectPropertyType[];
@@ -284,9 +293,23 @@ function buildProjectFormData(payload: CreateProjectPayload) {
   return formData;
 }
 
-export async function importProperties(file: File) {
+export async function previewPropertiesImport(file: File) {
   const formData = new FormData();
   formData.append("file", file);
+  return apiRequest<ImportPropertiesPreview>("/api/properties/import/preview", {
+    method: "POST",
+    body: formData
+  });
+}
+
+export async function importProperties(input: { file: File; mappings?: Partial<Record<string, string>> }) {
+  const formData = new FormData();
+  formData.append("file", input.file);
+  Object.entries(input.mappings || {}).forEach(([field, header]) => {
+    if (header) {
+      formData.append(`mapping_${field}`, header);
+    }
+  });
   return apiRequest<ImportPropertiesResponse>("/api/properties/import", {
     method: "POST",
     body: formData

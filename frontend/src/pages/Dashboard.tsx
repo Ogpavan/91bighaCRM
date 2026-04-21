@@ -126,19 +126,13 @@ export default function Dashboard() {
 
   const copy = useMemo(() => getRoleCopy(String(role || summary.role || "")), [role, summary.role]);
   const normalizedRole = String(role || summary.role || "").trim().toLowerCase();
+  const isAdmin = normalizedRole === "admin";
   const taskSummary = summary.tasks;
   const leadSummary = summary.leads;
   const workspaceSummary = summary.workspace;
   const canCreateLead = hasPermission("create_leads");
   const canCreateTask = hasPermission("create_tasks");
-  const canSeeExecutiveBlocks = Boolean(
-    workspaceSummary &&
-      (normalizedRole === "admin" ||
-        normalizedRole === "salesmanager" ||
-        hasPermission("view_reports") ||
-        hasPermission("manage_users") ||
-        hasPermission("view_users"))
-  );
+  const canSeeAdminBlocks = Boolean(isAdmin && workspaceSummary);
 
   const topKpis = [
     taskSummary
@@ -147,16 +141,16 @@ export default function Dashboard() {
     taskSummary
       ? { label: "Overdue Tasks", value: String(taskSummary.overdue), icon: ClipboardList, accent: "text-red-600" }
       : null,
-    leadSummary
+    isAdmin && leadSummary
       ? { label: "Total Leads", value: String(leadSummary.total), icon: Target, accent: "text-amber-600" }
       : null,
-    leadSummary
+    isAdmin && leadSummary
       ? { label: "Recall Today", value: String(leadSummary.recallToday), icon: PhoneCall, accent: "text-blue-600" }
       : null,
-    canSeeExecutiveBlocks && workspaceSummary
+    canSeeAdminBlocks && workspaceSummary
       ? { label: "Active Users", value: String(workspaceSummary.activeUsers), icon: Users, accent: "text-emerald-600" }
       : null,
-    canSeeExecutiveBlocks && workspaceSummary
+    canSeeAdminBlocks && workspaceSummary
       ? { label: "Properties", value: String(workspaceSummary.properties), icon: BriefcaseBusiness, accent: "text-slate-700" }
       : null
   ].filter(Boolean) as Array<{ label: string; value: string; icon: typeof Users; accent: string }>;
@@ -232,7 +226,7 @@ export default function Dashboard() {
               <TaskBoardCard taskSummary={taskSummary} />
             ) : null}
 
-            {leadSummary ? (
+            {isAdmin && leadSummary ? (
               <BreakdownCard
                 title="Lead Status Mix"
                 description="Current status spread from your stored leads."
@@ -241,24 +235,15 @@ export default function Dashboard() {
               />
             ) : null}
 
-            {leadSummary ? (
-              <BreakdownCard
-                title="Top Lead Sources"
-                description="Where most leads are currently coming from."
-                items={leadSummary.sourceBreakdown}
-                emptyLabel="No lead sources available."
-              />
-            ) : null}
-
-            {leadSummary ? (
+            {isAdmin && leadSummary ? (
               <RecentLeadsCard leadSummary={leadSummary} />
             ) : null}
 
-            {canSeeExecutiveBlocks && workspaceSummary ? (
+            {canSeeAdminBlocks && workspaceSummary ? (
               <WorkspaceCard workspaceSummary={workspaceSummary} />
             ) : null}
 
-            {canSeeExecutiveBlocks && workspaceSummary?.roleBreakdown?.length ? (
+            {canSeeAdminBlocks && workspaceSummary?.roleBreakdown?.length ? (
               <BreakdownCard
                 title="Users by Role"
                 description="Active user distribution across roles."
@@ -267,7 +252,7 @@ export default function Dashboard() {
               />
             ) : null}
 
-            {canSeeExecutiveBlocks && workspaceSummary?.propertyTypeBreakdown?.length ? (
+            {canSeeAdminBlocks && workspaceSummary?.propertyTypeBreakdown?.length ? (
               <BreakdownCard
                 title="Property Type Mix"
                 description="Inventory spread across property categories."

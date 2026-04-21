@@ -23,6 +23,8 @@ import {
   createProject,
   getProjects,
   importProperties,
+  previewPropertiesImport,
+  type ImportPropertiesPreview,
   type ImportPropertiesResponse,
   type ProjectFilterOptions,
   type ProjectListing,
@@ -120,6 +122,44 @@ const EMPTY_FILTER_OPTIONS: ProjectFilterOptions = {
   cities: [],
   propertyTypes: []
 };
+
+const PROPERTY_IMPORT_FIELDS: Array<{ key: string; label: string; required?: boolean }> = [
+  { key: "title", label: "Title" },
+  { key: "listingType", label: "Listing Type" },
+  { key: "propertyType", label: "Property Type", required: true },
+  { key: "locality", label: "Locality", required: true },
+  { key: "city", label: "City" },
+  { key: "state", label: "State" },
+  { key: "country", label: "Country" },
+  { key: "subLocality", label: "Sub Locality" },
+  { key: "addressLine1", label: "Address Line 1" },
+  { key: "addressLine2", label: "Address Line 2" },
+  { key: "landmark", label: "Landmark" },
+  { key: "pincode", label: "Pincode" },
+  { key: "status", label: "Status" },
+  { key: "possessionStatus", label: "Possession Status" },
+  { key: "facing", label: "Facing" },
+  { key: "latitude", label: "Latitude" },
+  { key: "longitude", label: "Longitude" },
+  { key: "priceAmount", label: "Price Amount" },
+  { key: "rentAmount", label: "Rent Amount" },
+  { key: "priceLabel", label: "Price Label" },
+  { key: "bedrooms", label: "Bedrooms" },
+  { key: "bathrooms", label: "Bathrooms" },
+  { key: "balconies", label: "Balconies" },
+  { key: "floorNumber", label: "Floor Number" },
+  { key: "floorsTotal", label: "Floors Total" },
+  { key: "builtupArea", label: "Built-up Area" },
+  { key: "builtupAreaUnit", label: "Built-up Area Unit" },
+  { key: "carpetArea", label: "Carpet Area" },
+  { key: "plotArea", label: "Plot Area" },
+  { key: "parkingCount", label: "Parking Count" },
+  { key: "furnishingStatus", label: "Furnishing Status" },
+  { key: "ageOfProperty", label: "Age Of Property" },
+  { key: "features", label: "Features" },
+  { key: "isFeatured", label: "Is Featured" },
+  { key: "isVerified", label: "Is Verified" }
+];
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
@@ -226,7 +266,10 @@ export default function ProjectsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPropertiesPreview | null>(null);
+  const [importMappings, setImportMappings] = useState<Partial<Record<string, string>>>({});
   const [importResult, setImportResult] = useState<ImportPropertiesResponse | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -362,6 +405,8 @@ export default function ProjectsPage() {
       resetCreateForm();
     } else {
       setImportFile(null);
+      setImportPreview(null);
+      setImportMappings({});
       setImportResult(null);
     }
     setError("");
@@ -451,9 +496,54 @@ export default function ProjectsPage() {
   const openImportPanel = () => {
     setPanelMode("import");
     setError("");
+    setImportPreview(null);
+    setImportMappings({});
     setImportResult(null);
     setImportFile(null);
     setPanelOpen(true);
+  };
+
+  const handleFilePreview = async (file: File) => {
+    setPreviewLoading(true);
+    setError("");
+    setSuccess("");
+    setImportResult(null);
+
+    try {
+      const preview = await previewPropertiesImport(file);
+      setImportFile(file);
+      setImportPreview(preview);
+      setImportMappings(preview.suggestedMappings || {});
+    } catch (previewError) {
+      setError(previewError instanceof Error ? previewError.message : "Failed to preview import file.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleHeaderMappingChange = (header: string, fieldKey: string) => {
+    setImportMappings((prev) => {
+      const next: Partial<Record<string, string>> = {};
+      for (const field of PROPERTY_IMPORT_FIELDS) {
+        const existingHeader = prev[field.key];
+        if (!existingHeader) {
+          continue;
+        }
+        if (existingHeader === header) {
+          continue;
+        }
+        if (field.key === fieldKey) {
+          continue;
+        }
+        next[field.key] = existingHeader;
+      }
+
+      if (fieldKey) {
+        next[fieldKey] = header;
+      }
+
+      return next;
+    });
   };
 
   const downloadSampleCsv = () => {
@@ -521,8 +611,13 @@ export default function ProjectsPage() {
 
   const onImportSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!importFile) {
+    if (!importFile || !importPreview) {
       setError("Choose a CSV, Excel, or JSON file to import.");
+      return;
+    }
+
+    if (!importMappings.propertyType || !importMappings.locality) {
+      setError("Please map Property Type and Locality before importing.");
       return;
     }
 
@@ -532,13 +627,14 @@ export default function ProjectsPage() {
     setImportResult(null);
 
     try {
-      const result = await importProperties(importFile);
+      const result = await importProperties({ file: importFile, mappings: importMappings });
       setImportResult(result);
       const skippedCount = result.skippedCount ?? 0;
       setSuccess(
         `Imported ${result.importedCount} properties.${skippedCount ? ` ${skippedCount} duplicates skipped.` : ""}${result.failedCount ? ` ${result.failedCount} rows failed.` : ""}`
       );
       await loadProjects();
+      closePanel();
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : "Failed to import properties.");
     } finally {
@@ -812,12 +908,16 @@ export default function ProjectsPage() {
             <Field label="Address Line 1">
               <Input className="h-9 text-xs" value={form.addressLine1} onChange={(event) => setText("addressLine1", event.target.value)} />
             </Field>
-            <Field label="Sale Price">
-              <Input className="h-9 text-xs" type="number" value={form.priceAmount} onChange={(event) => setText("priceAmount", event.target.value)} />
-            </Field>
-            <Field label="Monthly Rent">
-              <Input className="h-9 text-xs" type="number" value={form.rentAmount} onChange={(event) => setText("rentAmount", event.target.value)} />
-            </Field>
+            {form.listingType === "sale" ? (
+              <Field label="Sale Price">
+                <Input className="h-9 text-xs" type="number" value={form.priceAmount} onChange={(event) => setText("priceAmount", event.target.value)} />
+              </Field>
+            ) : null}
+            {form.listingType === "rent" || form.listingType === "lease" ? (
+              <Field label="Monthly Rent">
+                <Input className="h-9 text-xs" type="number" value={form.rentAmount} onChange={(event) => setText("rentAmount", event.target.value)} />
+              </Field>
+            ) : null}
             <Field label="Price Label">
               <Input className="h-9 text-xs" value={form.priceLabel} onChange={(event) => setText("priceLabel", event.target.value)} />
             </Field>
@@ -988,14 +1088,115 @@ export default function ProjectsPage() {
                 </div>
 		          </div>
 
-          <Field label="Import File">
-            <Input
-              className="h-10 text-xs"
-              type="file"
-              accept=".csv,.xlsx,.xls,.json,application/json"
-              onChange={(event) => setImportFile(event.target.files?.[0] || null)}
-            />
-          </Field>
+          <input
+            id="properties-import-file"
+            type="file"
+            accept=".csv,.xlsx,.xls,.json,application/json"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                void handleFilePreview(file);
+              }
+            }}
+          />
+          <div
+            className="rounded-sm border border-dashed border-gray-300 bg-gray-50 p-4 text-center"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              const file = event.dataTransfer.files?.[0];
+              if (file) {
+                void handleFilePreview(file);
+              }
+            }}
+          >
+            <p className="text-xs text-gray-600 dark:text-slate-300">Choose a file to preview and map columns before import.</p>
+            <div className="mt-3 flex justify-center">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={previewLoading || importing}
+                onClick={() => document.getElementById("properties-import-file")?.click()}
+              >
+                {previewLoading ? "Reading File..." : "Browse File"}
+              </Button>
+            </div>
+            {importFile ? <p className="mt-2 text-xs text-gray-600">Selected file: {importFile.name}</p> : null}
+          </div>
+
+          {importPreview ? (
+            <div className="space-y-3 rounded-sm border border-gray-200 p-3 dark:border-slate-700">
+              <div className="rounded-sm border border-gray-200 bg-gray-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/40">
+                <p className="text-gray-500">Rows Found</p>
+                <p className="mt-1 text-sm font-medium text-gray-800 dark:text-slate-100">{importPreview.totalRows}</p>
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-medium text-gray-800 dark:text-slate-100">Map Columns</p>
+                <div className="hidden grid-cols-[1fr_1fr] gap-2 border-b border-gray-200 pb-2 text-xs font-semibold text-gray-600 md:grid dark:border-slate-700 dark:text-slate-300">
+                  <p>Sheet Column</p>
+                  <p>CRM Column</p>
+                </div>
+                <div className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+                  {importPreview.headers.map((header) => {
+                    const mappedField = PROPERTY_IMPORT_FIELDS.find((field) => importMappings[field.key] === header);
+                    return (
+                      <div key={header} className="grid grid-cols-1 gap-2 rounded-sm border border-gray-100 p-2 md:grid-cols-[1fr_1fr] md:items-center dark:border-slate-700">
+                        <div>
+                          <p className="text-[11px] text-gray-500 md:hidden">Sheet Column</p>
+                          <p className="text-xs font-medium text-gray-800 dark:text-slate-100">{header}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-gray-500 md:hidden">CRM Column</p>
+                          <Select
+                            className="h-9 text-xs"
+                            value={mappedField?.key || ""}
+                            onChange={(event) => handleHeaderMappingChange(header, event.target.value)}
+                          >
+                            <option value="">Do not import</option>
+                            {PROPERTY_IMPORT_FIELDS.map((field) => (
+                              <option key={field.key} value={field.key}>
+                                {field.label}
+                                {field.required ? " *" : ""}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-sm border border-gray-200 p-3 dark:border-slate-700">
+                <p className="mb-2 text-sm font-medium text-gray-800 dark:text-slate-100">Preview Rows</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-gray-600 dark:border-slate-700 dark:text-slate-300">
+                        {importPreview.headers.map((header) => (
+                          <th key={header} className="px-2 py-2 font-medium">{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.sampleRows.map((row, rowIndex) => (
+                        <tr key={rowIndex} className="border-b border-gray-100 dark:border-slate-800">
+                          {importPreview.headers.map((header) => (
+                            <td key={`${rowIndex}-${header}`} className="px-2 py-2 text-gray-700 dark:text-slate-200">
+                              {String(row[header] ?? "-")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
           {importResult ? (

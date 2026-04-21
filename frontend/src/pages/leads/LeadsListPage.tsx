@@ -85,6 +85,8 @@ type ImportSummary = {
   failedCount: number;
   errors: Array<{ row: number; message: string }>;
 };
+const LEADS_SAMPLE_FILE_PATH = "/sample_real_estate_leads.csv";
+const LEADS_SAMPLE_FILE_NAME = "sample_real_estate_leads.csv";
 
 function TruncatedCell({ value }: { value?: string | null }) {
   const text = value || "-";
@@ -320,7 +322,6 @@ export default function LeadsListPage() {
   }, [leadsGridColumnVisibilityModel]);
 
   const leadColumns: Array<GridColDef<Lead>> = [
-    { field: "sno", headerName: "CRN", width: 90 },
     { field: "name", headerName: "Name", minWidth: 170, flex: 1, renderCell: (params) => <TruncatedCell value={params.row.name} /> },
     { field: "date", headerName: "Date", width: 120, renderCell: (params) => formatDate(params.row.date) },
     {
@@ -471,6 +472,42 @@ export default function LeadsListPage() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleHeaderMappingChange = (header: string, fieldKey: string) => {
+    setImportMappings((prev) => {
+      const next: Partial<Record<LeadImportField, string>> = {};
+      const normalizedFieldKey = (fieldKey || "") as LeadImportField;
+
+      for (const field of IMPORT_FIELDS) {
+        const existingHeader = prev[field.key];
+        if (!existingHeader) {
+          continue;
+        }
+        if (existingHeader === header) {
+          continue;
+        }
+        if (field.key === normalizedFieldKey) {
+          continue;
+        }
+        next[field.key] = existingHeader;
+      }
+
+      if (fieldKey) {
+        next[normalizedFieldKey] = header;
+      }
+
+      return next;
+    });
+  };
+
+  const handleDownloadSampleFile = () => {
+    const link = document.createElement("a");
+    link.href = LEADS_SAMPLE_FILE_PATH;
+    link.download = LEADS_SAMPLE_FILE_NAME;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   function openStatusModal(lead: Lead) {
@@ -917,9 +954,12 @@ export default function LeadsListPage() {
               >
                 <p className="text-sm font-medium text-gray-800">Drag and drop a CSV or Excel file here</p>
                 <p className="mt-1 text-xs text-gray-500">or browse to upload `.csv`, `.xlsx`, or `.xls` files</p>
-                <div className="mt-3 flex justify-center">
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <Button size="sm" variant="outline" disabled={previewLoading || importing} onClick={() => fileInputRef.current?.click()}>
                     {previewLoading ? "Reading File..." : "Browse File"}
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={previewLoading || importing} onClick={handleDownloadSampleFile}>
+                    Download Sample
                   </Button>
                 </div>
                 {importFile ? <p className="mt-2 text-xs text-gray-600">Selected file: {importFile.name}</p> : null}
@@ -927,6 +967,13 @@ export default function LeadsListPage() {
 
               {importPreview ? (
                 <>
+                  {(() => {
+                    const filteredHeaders = importPreview.headers.filter((header) => {
+                      const normalized = header.trim().toLowerCase().replace(/\s+/g, "");
+                      return normalized !== "crn" && normalized !== "sno" && normalized !== "srno";
+                    });
+                    return (
+                      <>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                     <div className="rounded-sm border border-gray-200 bg-gray-50 p-3 text-xs">
                       <p className="text-gray-500">Rows Found</p>
@@ -957,33 +1004,40 @@ export default function LeadsListPage() {
                   </div>
 
                   <div className="rounded-sm border border-gray-200 p-3">
-                    <p className="mb-3 text-sm font-medium text-gray-800">Map File Columns</p>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {IMPORT_FIELDS.map((field) => (
-                        <div key={field.key} className="space-y-1">
-                          <label className="text-xs font-medium text-gray-700">
-                            {field.label}
-                            {field.required ? <span className="ml-1 text-red-600">*</span> : null}
-                          </label>
-                          <Select
-                            className="h-9 text-xs"
-                            value={importMappings[field.key] || ""}
-                            onChange={(event) =>
-                              setImportMappings((prev) => ({
-                                ...prev,
-                                [field.key]: event.target.value || undefined
-                              }))
-                            }
-                          >
-                            <option value="">Do not import</option>
-                            {importPreview.headers.map((header) => (
-                              <option key={header} value={header}>
-                                {header}
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
-                      ))}
+                    <p className="mb-3 text-sm font-medium text-gray-800">Map Columns</p>
+                    <div className="hidden grid-cols-[1fr_1fr] gap-2 border-b border-gray-200 pb-2 text-xs font-semibold text-gray-600 md:grid">
+                      <p>Sheet Column</p>
+                      <p>CRM Column</p>
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {filteredHeaders.map((header) => {
+                        const mappedField = IMPORT_FIELDS.find((field) => importMappings[field.key] === header);
+
+                        return (
+                          <div key={header} className="grid grid-cols-1 gap-2 rounded-sm border border-gray-100 p-2 md:grid-cols-[1fr_1fr] md:items-center">
+                            <div>
+                              <p className="text-[11px] text-gray-500 md:hidden">Sheet Column</p>
+                              <p className="text-xs font-medium text-gray-800">{header}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-gray-500 md:hidden">CRM Column</p>
+                              <Select
+                                className="h-9 text-xs"
+                                value={mappedField?.key || ""}
+                                onChange={(event) => handleHeaderMappingChange(header, event.target.value)}
+                              >
+                                <option value="">Do not import</option>
+                                {IMPORT_FIELDS.map((field) => (
+                                  <option key={field.key} value={field.key}>
+                                    {field.label}
+                                    {field.required ? " *" : ""}
+                                  </option>
+                                ))}
+                              </Select>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -993,7 +1047,7 @@ export default function LeadsListPage() {
                       <Table className="[&_th]:px-2 [&_td]:px-2">
                         <TableHeader>
                           <TableRow>
-                            {importPreview.headers.map((header) => (
+                            {filteredHeaders.map((header) => (
                               <TableHead key={header}>{header}</TableHead>
                             ))}
                           </TableRow>
@@ -1001,7 +1055,7 @@ export default function LeadsListPage() {
                         <TableBody>
                           {importPreview.sampleRows.map((row, rowIndex) => (
                             <TableRow key={rowIndex}>
-                              {importPreview.headers.map((header) => (
+                              {filteredHeaders.map((header) => (
                                 <TableCell key={`${rowIndex}-${header}`}>{String(row[header] ?? "-")}</TableCell>
                               ))}
                             </TableRow>
@@ -1019,6 +1073,9 @@ export default function LeadsListPage() {
                       {importing ? "Importing..." : "Import Leads"}
                     </Button>
                   </div>
+                      </>
+                    );
+                  })()}
                 </>
               ) : null}
             </CardContent>
