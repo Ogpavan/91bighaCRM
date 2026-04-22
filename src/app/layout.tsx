@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { SiteShell } from "@/components/site-shell";
 import { VendorScripts } from "@/components/vendor-scripts";
 import "./globals.css";
 
 const assetBase = "/assets";
+const tawkToSrc = process.env.NEXT_PUBLIC_TAWK_TO_SRC?.trim();
 
 export const metadata: Metadata = {
   title: "Bareilly Property Portal | 91bigha.com",
@@ -42,6 +44,17 @@ export default function RootLayout({
       <body>
         <SiteShell>{children}</SiteShell>
         <VendorScripts />
+        {tawkToSrc ? (
+          <>
+            <Script id="tawk-init" strategy="afterInteractive">
+              {`
+                window.Tawk_API = window.Tawk_API || {};
+                window.Tawk_LoadStart = new Date();
+              `}
+            </Script>
+            <Script id="tawk-to" src={tawkToSrc} strategy="afterInteractive" crossOrigin="anonymous" />
+          </>
+        ) : null}
       </body>
     </html>
   );
