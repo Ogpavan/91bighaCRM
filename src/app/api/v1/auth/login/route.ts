@@ -83,7 +83,7 @@ export async function POST(request: Request) {
   }
 
   if (!userRow.is_active) {
-    return jsonResponse({ success: false, message: "Your account is disabled." }, 403, request);
+    return jsonResponse({ success: false, message: "Your account is inactive. Please contact admin to activate it." }, 403, request);
   }
 
   const permissions = await getUserPermissions(String(userRow.id));

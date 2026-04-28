@@ -2,11 +2,9 @@ import { NextResponse } from "next/server";
 import { createCorsPreflightResponse, withCors } from "@/lib/cors";
 import { getAppSettings } from "@/lib/app-settings";
 import {
-  createAuthToken,
   ensureCrmAuthSchema,
   getDefaultRoleSlug,
   getRoleBySlug,
-  getUserPermissions,
   hashPassword,
   mapUserRowToAuthUser,
   normalizeEmail,
@@ -101,7 +99,7 @@ export async function POST(request: Request) {
     const result = await client.query<UserRow>(
       `
         insert into users (name, email, phone, role, is_active, role_id, password_hash)
-        values ($1, $2, $3, $4, true, $5, $6)
+        values ($1, $2, $3, $4, false, $5, $6)
         returning
           id::text as id,
           name,
@@ -123,14 +121,11 @@ export async function POST(request: Request) {
     return jsonResponse({ success: false, message: "Unable to create account." }, 500, request);
   }
 
-  const permissions = await getUserPermissions(String(userRow.id));
-  const token = createAuthToken({ id: String(userRow.id), role: userRow.role }, permissions);
-
   return jsonResponse(
     {
       success: true,
       user: mapUserRowToAuthUser(userRow),
-      token
+      message: "Account created successfully. Your account is pending admin approval."
     },
     201,
     request

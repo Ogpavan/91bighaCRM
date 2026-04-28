@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import AuthShell from "@/components/AuthShell";
 import { useAuth } from "@/components/AuthContext";
@@ -9,12 +9,16 @@ import { login } from "@/api/auth-service";
 
 export default function SignIn() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setSession } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const signupMessage = typeof location.state === "object" && location.state && "signupMessage" in location.state
+    ? String((location.state as { signupMessage?: string }).signupMessage || "")
+    : "";
 
   const performLogin = async (nextEmail: string, nextPassword: string) => {
     const data = await login({ email: nextEmail.trim(), password: nextPassword });
@@ -69,6 +73,7 @@ export default function SignIn() {
       }
     >
       <form className="space-y-3" onSubmit={handleSubmit}>
+        {signupMessage ? <p className="text-xs text-blue-700">{signupMessage}</p> : null}
         <div className="space-y-1.5">
           <label htmlFor="email" className="text-xs font-medium text-gray-700">
             Work email
@@ -76,7 +81,6 @@ export default function SignIn() {
           <Input
             id="email"
             type="email"
-            placeholder="name@company.com"
             className="h-9 text-xs"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -96,7 +100,6 @@ export default function SignIn() {
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="Enter password"
               className="h-9 pr-9 text-xs"
               value={password}
               onChange={(event) => setPassword(event.target.value)}

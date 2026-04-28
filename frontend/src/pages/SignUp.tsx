@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAppSettings } from "@/components/AppSettingsContext";
 import AuthShell from "@/components/AuthShell";
-import { useAuth } from "@/components/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type AuthUser } from "@/lib/auth";
@@ -11,14 +10,12 @@ import { apiRequest } from "@/api/api";
 
 type RegisterApiResponse = {
   success: boolean;
-  user: AuthUser;
-  token: string;
+  user?: AuthUser;
   message?: string;
 };
 
 export default function SignUp() {
   const navigate = useNavigate();
-  const { setSession } = useAuth();
   const { settings, loading: settingsLoading } = useAppSettings();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -54,13 +51,12 @@ export default function SignUp() {
         },
       });
 
-      if (!data.token || !data.user) {
-        setError(data.message || "Sign up failed. Please try again.");
-        return;
-      }
-
-      setSession(data.token, data.user);
-      navigate("/", { replace: true });
+      navigate("/signin", {
+        replace: true,
+        state: {
+          signupMessage: data.message || "Account created. Please wait for admin approval before signing in."
+        }
+      });
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to connect to the server. Please try again.");
     } finally {
@@ -119,7 +115,6 @@ export default function SignUp() {
               <Input
                 id="firstName"
                 type="text"
-                placeholder="John"
                 className="h-9 text-xs"
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
@@ -132,7 +127,6 @@ export default function SignUp() {
               <Input
                 id="lastName"
                 type="text"
-                placeholder="Doe"
                 className="h-9 text-xs"
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
@@ -147,7 +141,6 @@ export default function SignUp() {
             <Input
               id="email"
               type="email"
-              placeholder="name@company.com"
               className="h-9 text-xs"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
@@ -162,7 +155,6 @@ export default function SignUp() {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                placeholder="Create password"
                 className="h-9 pr-9 text-xs"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}

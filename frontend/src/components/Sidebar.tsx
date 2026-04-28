@@ -37,20 +37,21 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "Dashboard", to: "/dashboard", icon: FaTachometerAlt, end: true, permission: "view_dashboard" },
   { label: "Leads", to: "/leads", icon: FaUserTie, permission: "view_leads", featureKey: "feature_leads" },
-  { label: "Properties", to: "/properties", icon: FaLayerGroup },
-  { label: "Projects", to: "/projects", icon: FaFolderOpen },
   { label: "My Tasks", to: "/my-tasks", icon: FaTasks, permission: "view_tasks", featureKey: "feature_tasks" },
   { label: "All Tasks", to: "/tasks", icon: FaTasks, permission: "view_tasks", featureKey: "feature_tasks" },
+  { label: "Properties", to: "/properties", icon: FaLayerGroup },
+  { label: "Projects", to: "/projects", icon: FaFolderOpen },
   { label: "Staff", to: "/users", icon: FaUsers, permission: "view_users", featureKey: "feature_users" },
   { label: "Teams", to: "/teams", icon: FaUserFriends, permission: "view_users", featureKey: "feature_teams" },
-  { label: "Modules", to: "/modules", icon: FaThLarge, permission: "manage_users" },
   { label: "Reports", to: "/reports", icon: FaChartLine, permission: "view_reports", featureKey: "feature_reports" },
+  { label: "Modules", to: "/modules", icon: FaThLarge, permission: "manage_users" },
   { label: "Settings", to: "/settings", icon: FaCog, permission: "manage_settings" },
 ];
 
 export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
   const { hasPermission } = useAuth();
   const { isFeatureEnabled, settings } = useAppSettings();
+  const appVersion = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "0.0.0";
   const appName = settings.app_name?.trim() || "Sarwe Crm";
   const logoUrl = resolveApiAssetUrl(settings.brand_logo_url);
   const visibleNavItems = navItems.filter((item) => {
@@ -168,7 +169,7 @@ export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }: Sideba
 
           {!collapsed ? (
             <div className="mt-auto rounded-sm border border-gray-200 bg-gray-50 p-2.5 text-[11px] text-gray-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">
-              Workspace synced
+              Version {appVersion}
             </div>
           ) : null}
         </div>

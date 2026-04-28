@@ -63,7 +63,16 @@ export async function disableUser(userId: string): Promise<void> {
   });
 }
 
-export async function updateUser(userId: string, payload: { roleName?: string }): Promise<UserItem> {
+export type UpdateUserPayload = {
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  roleName?: string;
+  teamId?: string;
+  isActive?: boolean;
+};
+
+export async function updateUser(userId: string, payload: UpdateUserPayload): Promise<UserItem> {
   const response = await apiRequest<UserResponse>(`/api/v1/users/${userId}`, {
     method: "PUT",
     body: payload

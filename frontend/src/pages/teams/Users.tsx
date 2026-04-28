@@ -6,10 +6,12 @@ import { useAuth } from "@/components/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { getRoles, type RoleItem } from "@/api/roles-service";
 import { disableUser, getUsers, updateUser, type UserItem } from "@/api/users-service";
+import { getTeams, type TeamItem } from "@/api/teams-service";
 
 const roleBadgeClasses = [
   "border-blue-200 bg-blue-50 text-blue-700",
@@ -30,12 +32,21 @@ export default function Users() {
 
   const [items, setItems] = useState<UserItem[]>([]);
   const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [teams, setTeams] = useState<TeamItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
+  const [roleEditingUser, setRoleEditingUser] = useState<UserItem | null>(null);
+  const [editFullName, setEditFullName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editTeamId, setEditTeamId] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [selectedRole, setSelectedRole] = useState("");
   const [savingRole, setSavingRole] = useState(false);
 
@@ -67,6 +78,19 @@ export default function Users() {
     }
   };
 
+  const loadTeams = async () => {
+    if (!hasPermission("manage_users")) {
+      return;
+    }
+
+    try {
+      const teamItems = await getTeams();
+      setTeams(teamItems);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load teams");
+    }
+  };
+
   const handleDisable = async (userId: string) => {
     try {
       await disableUser(userId);
@@ -79,23 +103,59 @@ export default function Users() {
   useEffect(() => {
     void loadUsers(1);
     void loadRoles();
+    void loadTeams();
   }, []);
 
-  const openEditRole = (user: UserItem) => {
+  const openEditStaff = (user: UserItem) => {
     setEditingUser(user);
+    setEditFullName(user.fullName);
+    setEditEmail(user.email);
+    setEditPhone(user.phone || "");
+    setEditRole(user.role);
+    setEditTeamId(user.teamId || "");
+    setEditIsActive(user.isActive);
+  };
+
+  const handleSaveStaff = async () => {
+    if (!editingUser || !editRole) {
+      return;
+    }
+
+    setSavingEdit(true);
+    setError("");
+    try {
+      await updateUser(editingUser.id, {
+        fullName: editFullName.trim(),
+        email: editEmail.trim(),
+        phone: editPhone.trim(),
+        roleName: editRole,
+        teamId: editTeamId || undefined,
+        isActive: editIsActive
+      });
+      setEditingUser(null);
+      await loadUsers(page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update user");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const openAssignRole = (user: UserItem) => {
+    setRoleEditingUser(user);
     setSelectedRole(user.role);
   };
 
-  const handleSaveRole = async () => {
-    if (!editingUser || !selectedRole) {
+  const handleSaveAssignedRole = async () => {
+    if (!roleEditingUser || !selectedRole) {
       return;
     }
 
     setSavingRole(true);
     setError("");
     try {
-      await updateUser(editingUser.id, { roleName: selectedRole });
-      setEditingUser(null);
+      await updateUser(roleEditingUser.id, { roleName: selectedRole });
+      setRoleEditingUser(null);
       await loadUsers(page);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update role");
@@ -139,7 +199,7 @@ export default function Users() {
     {
       field: "actions",
       headerName: "Actions",
-      width: 180,
+      width: 260,
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
@@ -148,10 +208,18 @@ export default function Users() {
           <Button
             variant="outline"
             className="h-7 text-[11px]"
-            onClick={() => openEditRole(params.row)}
+            onClick={() => openEditStaff(params.row)}
             disabled={!hasPermission("manage_users")}
           >
             Edit
+          </Button>
+          <Button
+            variant="outline"
+            className="h-7 text-[11px]"
+            onClick={() => openAssignRole(params.row)}
+            disabled={!hasPermission("manage_users")}
+          >
+            Assign Role
           </Button>
           <Button
             variant="ghost"
@@ -250,8 +318,68 @@ export default function Users() {
       {editingUser ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/30 p-4">
           <div className="w-full max-w-sm rounded-sm border border-gray-200 bg-white p-4 shadow-lg">
-            <h2 className="text-sm font-semibold text-gray-800">Assign Role</h2>
+            <h2 className="text-sm font-semibold text-gray-800">Edit Staff Details</h2>
             <p className="mt-1 text-xs text-gray-500">{editingUser.fullName}</p>
+            <div className="mt-3 space-y-2">
+              <label className="text-xs font-medium text-gray-700">Full Name</label>
+              <Input className="h-9 text-xs" value={editFullName} onChange={(event) => setEditFullName(event.target.value)} />
+            </div>
+            <div className="mt-3 space-y-2">
+              <label className="text-xs font-medium text-gray-700">Email</label>
+              <Input className="h-9 text-xs" type="email" value={editEmail} onChange={(event) => setEditEmail(event.target.value)} />
+            </div>
+            <div className="mt-3 space-y-2">
+              <label className="text-xs font-medium text-gray-700">Phone</label>
+              <Input className="h-9 text-xs" value={editPhone} onChange={(event) => setEditPhone(event.target.value)} />
+            </div>
+            <div className="mt-3 space-y-2">
+              <label className="text-xs font-medium text-gray-700">Role</label>
+              <Select className="h-9 text-xs" value={editRole} onChange={(event) => setEditRole(event.target.value)}>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.name}>
+                    {role.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="mt-3 space-y-2">
+              <label className="text-xs font-medium text-gray-700">Team</label>
+              <Select className="h-9 text-xs" value={editTeamId} onChange={(event) => setEditTeamId(event.target.value)}>
+                <option value="">Unassigned</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="mt-3 space-y-2">
+              <label className="text-xs font-medium text-gray-700">Status</label>
+              <Select
+                className="h-9 text-xs"
+                value={editIsActive ? "active" : "inactive"}
+                onChange={(event) => setEditIsActive(event.target.value === "active")}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </Select>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" className="h-8 text-xs" onClick={() => setEditingUser(null)}>
+                Cancel
+              </Button>
+              <Button className="h-8 text-xs" onClick={() => void handleSaveStaff()} disabled={savingEdit}>
+                {savingEdit ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {roleEditingUser ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/30 p-4">
+          <div className="w-full max-w-sm rounded-sm border border-gray-200 bg-white p-4 shadow-lg">
+            <h2 className="text-sm font-semibold text-gray-800">Assign Role</h2>
+            <p className="mt-1 text-xs text-gray-500">{roleEditingUser.fullName}</p>
             <div className="mt-3 space-y-2">
               <label className="text-xs font-medium text-gray-700">Role</label>
               <Select className="h-9 text-xs" value={selectedRole} onChange={(event) => setSelectedRole(event.target.value)}>
@@ -263,10 +391,10 @@ export default function Users() {
               </Select>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" className="h-8 text-xs" onClick={() => setEditingUser(null)}>
+              <Button variant="outline" className="h-8 text-xs" onClick={() => setRoleEditingUser(null)}>
                 Cancel
               </Button>
-              <Button className="h-8 text-xs" onClick={() => void handleSaveRole()} disabled={savingRole}>
+              <Button className="h-8 text-xs" onClick={() => void handleSaveAssignedRole()} disabled={savingRole}>
                 {savingRole ? "Saving..." : "Save"}
               </Button>
             </div>

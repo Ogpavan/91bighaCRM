@@ -781,7 +781,7 @@ async function handleNotifications(request: Request, method: string, segments: s
     return jsonResponse({ success: true, items: data.items, unreadCount: data.unreadCount }, 200, request);
   }
 
-  if (segments[2] === "read-all" && method === "POST") {
+  if (segments[2] === "read-all" && (method === "POST" || method === "PUT")) {
     await markAllNotificationsRead(auth.userId);
     return jsonResponse({ success: true, message: "All notifications marked as read." }, 200, request);
   }
@@ -833,7 +833,7 @@ async function handleNotifications(request: Request, method: string, segments: s
   }
 
   const notificationId = segments[2];
-  if (notificationId && segments[3] === "read" && method === "POST") {
+  if (notificationId && segments[3] === "read" && (method === "POST" || method === "PUT")) {
     const notification = await markNotificationRead(notificationId, auth.userId);
     return jsonResponse({ success: true, notification }, 200, request);
   }
@@ -1146,17 +1146,84 @@ async function handleUsers(request: Request, method: string, segments: string[])
 
   if (method === "PUT") {
     requirePermission(request, "manage_users");
-    const payload = await parseJson<{ roleName?: string }>(request);
-    if (!payload.roleName) {
-      return jsonResponse({ success: false, message: "Role is required." }, 400, request);
+    const payload = await parseJson<{
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      roleName?: string;
+      teamId?: string | null;
+      isActive?: boolean;
+    }>(request);
+
+    const updates: string[] = [];
+    const params: Array<string | number | boolean | null> = [Number(userId)];
+    let paramIndex = 2;
+
+    if (payload.fullName !== undefined) {
+      const fullName = String(payload.fullName || "").trim();
+      if (!fullName) {
+        return jsonResponse({ success: false, message: "Name is required." }, 400, request);
+      }
+      updates.push(`name = $${paramIndex++}`);
+      params.push(fullName);
     }
 
-    const role = await getRoleByName(payload.roleName);
-    if (!role) {
-      return jsonResponse({ success: false, message: "Role not found." }, 400, request);
+    if (payload.email !== undefined) {
+      const email = String(payload.email || "").trim().toLowerCase();
+      if (!email) {
+        return jsonResponse({ success: false, message: "Email is required." }, 400, request);
+      }
+      updates.push(`email = $${paramIndex++}`);
+      params.push(email);
+    }
+
+    if (payload.phone !== undefined) {
+      const phone = String(payload.phone || "").trim();
+      updates.push(`phone = $${paramIndex++}`);
+      params.push(phone || null);
+    }
+
+    if (payload.roleName !== undefined) {
+      const roleName = String(payload.roleName || "").trim();
+      if (!roleName) {
+        return jsonResponse({ success: false, message: "Role is required." }, 400, request);
+      }
+      const role = await getRoleByName(roleName);
+      if (!role) {
+        return jsonResponse({ success: false, message: "Role not found." }, 400, request);
+      }
+      updates.push(`role = $${paramIndex++}`);
+      params.push(role.name);
+      updates.push(`role_id = $${paramIndex++}`);
+      params.push(Number(role.id));
+    }
+
+    if (payload.teamId !== undefined) {
+      updates.push(`team_id = $${paramIndex++}`);
+      params.push(payload.teamId ? Number(payload.teamId) : null);
+    }
+
+    if (payload.isActive !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      params.push(Boolean(payload.isActive));
+    }
+
+    if (!updates.length) {
+      return jsonResponse({ success: false, message: "No fields to update." }, 400, request);
     }
 
     const user = await withDbClient(async (client) => {
+      if (payload.email !== undefined) {
+        const requestedEmail = String(payload.email || "").trim().toLowerCase();
+        const existing = await client.query<{ id: string }>(
+          "select id::text as id from users where lower(email) = lower($1) and id <> $2 limit 1",
+          [requestedEmail, Number(userId)]
+        );
+        if (existing.rows.length) {
+          throw new Error("An account with this email already exists.");
+        }
+      }
+
       const result = await client.query<{
         id: string;
         name: string;
@@ -1170,7 +1237,7 @@ async function handleUsers(request: Request, method: string, segments: string[])
       }>(
         `
           update users
-          set role = $2, role_id = $3
+          set ${updates.join(", ")}
           where id = $1
           returning
             id::text as id,
@@ -1183,7 +1250,7 @@ async function handleUsers(request: Request, method: string, segments: string[])
             is_active,
             created_at::text as created_at
         `,
-        [Number(userId), role.name, Number(role.id)]
+        params
       );
 
       if (!result.rows.length) {

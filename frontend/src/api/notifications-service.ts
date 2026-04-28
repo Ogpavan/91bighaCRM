@@ -29,13 +29,13 @@ export async function getNotifications(limit = 12) {
 
 export async function markNotificationRead(notificationId: string) {
   const response = await apiRequest<NotificationResponse>(`/api/v1/notifications/${notificationId}/read`, {
-    method: "PUT"
+    method: "POST"
   });
   return response.notification;
 }
 
 export async function markAllNotificationsRead() {
   await apiRequest<{ success: boolean; message: string }>("/api/v1/notifications/read-all", {
-    method: "PUT"
+    method: "POST"
   });
 }
